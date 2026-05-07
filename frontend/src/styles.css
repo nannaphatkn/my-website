@@ -1,0 +1,1296 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --ink: #2d2420;
+  --muted: #75665d;
+  --paper: #fff7e8;
+  --paper-deep: #f3e4c8;
+  --coffee: #4d3329;
+  --oxblood: #7d2522;
+  --mustard: #d59b2d;
+  --teal: #1f6b63;
+  --forest: #315d3f;
+  --line: #d7c3a2;
+  --danger: #b42318;
+  --shadow: 0 18px 50px rgba(55, 37, 26, 0.16);
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+  letter-spacing: 0;
+}
+
+body {
+  min-width: 320px;
+  margin: 0;
+  color: var(--ink);
+  background-color: var(--paper-deep);
+  background-image: repeating-linear-gradient(90deg, rgba(45, 36, 32, 0.035) 0, rgba(45, 36, 32, 0.035) 1px, transparent 1px, transparent 12px);
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.62;
+}
+
+img {
+  display: block;
+}
+
+.kicker {
+  margin: 0 0 4px;
+  color: var(--teal);
+  font-size: 0.75rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.muted {
+  color: var(--muted);
+}
+
+.loginPage {
+  display: grid;
+  grid-template-columns: minmax(320px, 0.9fr) minmax(360px, 1.1fr);
+  min-height: 100vh;
+}
+
+.loginPoster {
+  display: grid;
+  min-height: 100vh;
+  place-items: center;
+  padding: 40px;
+  background-color: var(--coffee);
+  border-right: 10px solid var(--mustard);
+}
+
+.posterFrame {
+  display: grid;
+  width: min(360px, 82vw);
+  min-height: 500px;
+  align-content: center;
+  justify-items: center;
+  gap: 14px;
+  padding: 38px;
+  color: var(--paper);
+  background:
+    linear-gradient(rgba(125, 37, 34, 0.78), rgba(49, 93, 63, 0.72)),
+    url("https://images.unsplash.com/photo-1506157786151-b8491531f063?auto=format&fit=crop&w=900&q=80");
+  background-position: center;
+  background-size: cover;
+  border: 1px solid rgba(255, 247, 232, 0.45);
+  border-radius: 8px;
+  box-shadow: var(--shadow);
+  text-align: center;
+}
+
+.posterFrame span {
+  font-size: 3rem;
+  font-weight: 900;
+}
+
+.posterFrame strong {
+  color: var(--mustard);
+  font-size: 1.15rem;
+  text-transform: uppercase;
+}
+
+.loginPanel {
+  display: grid;
+  align-content: center;
+  width: min(520px, 100%);
+  padding: 56px;
+}
+
+.loginPanel h1,
+.sectionHeader h2,
+.stageBanner h2 {
+  margin: 0;
+  color: var(--ink);
+  font-size: 2rem;
+  line-height: 1.1;
+}
+
+.formStack,
+.adminForm {
+  display: grid;
+  gap: 16px;
+  margin-top: 28px;
+}
+
+label {
+  display: grid;
+  gap: 7px;
+  color: var(--coffee);
+  font-weight: 750;
+}
+
+label span {
+  font-size: 0.88rem;
+}
+
+input,
+select,
+textarea {
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 12px;
+  color: var(--ink);
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  outline: none;
+}
+
+textarea {
+  min-height: 88px;
+  resize: vertical;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+  border-color: var(--teal);
+  box-shadow: 0 0 0 3px rgba(31, 107, 99, 0.18);
+}
+
+.passwordField {
+  position: relative;
+}
+
+.passwordField input {
+  padding-right: 48px;
+}
+
+.passwordField .iconButton {
+  position: absolute;
+  top: 5px;
+  right: 6px;
+}
+
+.button {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  font-weight: 850;
+}
+
+.button.primary {
+  color: var(--paper);
+  background: var(--oxblood);
+}
+
+.button.secondary {
+  color: var(--ink);
+  background: var(--paper);
+  border-color: var(--line);
+}
+
+.button.danger {
+  color: white;
+  background: var(--danger);
+}
+
+.button.compact {
+  min-height: 36px;
+  padding: 7px 11px;
+  font-size: 0.9rem;
+}
+
+.fullWidth {
+  width: 100%;
+}
+
+.iconButton {
+  display: inline-grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  color: var(--ink);
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.iconButton.ghost {
+  color: var(--paper);
+  background: rgba(255, 247, 232, 0.12);
+  border-color: rgba(255, 247, 232, 0.25);
+}
+
+.errorText,
+.noticeText {
+  margin: 0;
+  color: var(--danger);
+  font-weight: 700;
+}
+
+.noticeText {
+  color: var(--teal);
+}
+
+.appShell {
+  min-height: 100vh;
+}
+
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  min-height: 78px;
+  padding: 14px 28px;
+  color: var(--paper);
+  background: var(--coffee);
+  border-bottom: 5px solid var(--mustard);
+}
+
+.brandLockup,
+.topbarActions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.brandLockup h1 {
+  margin: 0;
+  color: var(--paper);
+  font-size: 1.25rem;
+}
+
+.brandMark {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  color: var(--coffee);
+  background: var(--mustard);
+  border-radius: 50%;
+}
+
+.sessionName {
+  max-width: 180px;
+  overflow: hidden;
+  color: var(--paper);
+  font-weight: 800;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.customerGrid {
+  display: grid;
+  grid-template-columns: 340px minmax(420px, 1fr) 300px;
+  gap: 22px;
+  padding: 24px;
+}
+
+.concertRail,
+.bookingStage,
+.summaryPanel,
+.adminPanel {
+  background: rgba(255, 247, 232, 0.84);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: var(--shadow);
+}
+
+.concertRail,
+.summaryPanel,
+.bookingStage {
+  padding: 18px;
+}
+
+.sectionHeader {
+  display: grid;
+  gap: 2px;
+  margin-bottom: 16px;
+}
+
+.sectionHeader.horizontal {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.concertList {
+  display: grid;
+  gap: 12px;
+}
+
+.concertCard {
+  display: grid;
+  grid-template-columns: 92px 1fr;
+  gap: 12px;
+  width: 100%;
+  padding: 10px;
+  text-align: left;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.concertCard.active {
+  border-color: var(--teal);
+  box-shadow: 0 0 0 3px rgba(31, 107, 99, 0.18);
+}
+
+.concertCard img {
+  width: 92px;
+  height: 122px;
+  object-fit: cover;
+  background: var(--coffee);
+  border-radius: 6px;
+}
+
+.concertCard h3,
+.reportRow span {
+  margin: 0;
+  color: var(--ink);
+  font-size: 1rem;
+}
+
+.concertCard p {
+  margin: 3px 0 8px;
+  color: var(--muted);
+}
+
+.concertCard span {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin: 4px 0;
+  color: var(--coffee);
+  font-size: 0.82rem;
+}
+
+.concertCard strong {
+  display: inline-block;
+  margin-top: 7px;
+  color: var(--forest);
+}
+
+.stageBanner {
+  display: grid;
+  min-height: 190px;
+  align-items: end;
+  margin-bottom: 18px;
+  padding: 24px;
+  color: var(--paper);
+  background:
+    linear-gradient(rgba(45, 36, 32, 0.6), rgba(45, 36, 32, 0.74)),
+    url("https://images.unsplash.com/photo-1470229722913-7c0e2dbbafd3?auto=format&fit=crop&w=1200&q=80");
+  background-position: center;
+  background-size: cover;
+  border-radius: 8px;
+}
+
+.stageBanner h2,
+.stageBanner p {
+  color: var(--paper);
+}
+
+.stageBanner p:last-child {
+  max-width: 720px;
+  margin: 8px 0 0;
+}
+
+.zoneLegend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.zoneLegend span,
+.holdNote {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 32px;
+  padding: 6px 10px;
+  color: var(--coffee);
+  background: #ead7b5;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  font-size: 0.86rem;
+  font-weight: 800;
+}
+
+.seatMap {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(72px, 1fr));
+  gap: 8px;
+}
+
+.seatButton {
+  width: 100%;
+  min-height: 44px;
+  padding: 4px 6px;
+  color: var(--ink);
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  font-size: 0.78rem;
+  font-weight: 850;
+  overflow-wrap: anywhere;
+}
+
+.seatButton.selected {
+  color: white;
+  background: var(--teal);
+  border-color: var(--teal);
+}
+
+.seatButton.pending {
+  color: var(--coffee);
+  background: #e9c26d;
+}
+
+.seatButton.sold,
+.seatButton.blocked {
+  color: #f8eedd;
+  background: #7a6b63;
+}
+
+.summaryPanel {
+  position: sticky;
+  top: 102px;
+  align-self: start;
+}
+
+.summaryRows {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 12px;
+  margin: 14px 0;
+  padding: 14px 0;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+
+.summaryRows span {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+}
+
+.holdNote {
+  width: 100%;
+  justify-content: center;
+  margin-bottom: 12px;
+  border-radius: 8px;
+}
+
+.adminGrid {
+  display: grid;
+  grid-template-columns: minmax(440px, 1.15fr) minmax(360px, 0.85fr);
+  gap: 22px;
+  padding: 24px;
+}
+
+.adminPanel {
+  padding: 20px;
+}
+
+.eventFormPanel {
+  grid-row: span 2;
+}
+
+.formGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.wide {
+  grid-column: 1 / -1;
+}
+
+.subHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 18px 0 12px;
+}
+
+.subHeader h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.zoneEditor {
+  border-top: 1px solid var(--line);
+}
+
+.zoneRow {
+  display: grid;
+  grid-template-columns: 1.2fr 0.8fr 0.8fr;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.tableWrap {
+  overflow-x: auto;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 520px;
+}
+
+th,
+td {
+  padding: 12px 10px;
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+  vertical-align: middle;
+}
+
+th {
+  color: var(--muted);
+  font-size: 0.8rem;
+  text-transform: uppercase;
+}
+
+.deleteOutline {
+  display: inline-flex;
+  min-height: 34px;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 6px 10px;
+  color: var(--danger);
+  background: transparent;
+  border: 1px solid var(--danger);
+  border-radius: 8px;
+  font-weight: 850;
+}
+
+.filterBar {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.reportTotals {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin: 16px 0;
+}
+
+.reportTotals div,
+.reportRow {
+  padding: 14px;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.reportTotals span,
+.reportRow small {
+  display: block;
+  color: var(--muted);
+  font-size: 0.84rem;
+}
+
+.reportTotals strong {
+  display: block;
+  margin-top: 4px;
+  color: var(--oxblood);
+  font-size: 1.35rem;
+}
+
+.reportRows {
+  display: grid;
+  gap: 10px;
+}
+
+.reportRow {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 6px 12px;
+}
+
+.reportRow small {
+  grid-column: 1 / -1;
+}
+
+.dialogBackdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: grid;
+  place-items: center;
+  padding: 18px;
+  background: rgba(45, 36, 32, 0.48);
+}
+
+.dialog {
+  width: min(420px, 100%);
+  padding: 24px;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: var(--shadow);
+}
+
+.dialogIcon {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  color: var(--danger);
+  background: #f9dfd9;
+  border-radius: 50%;
+}
+
+.dialog h2 {
+  margin: 14px 0 8px;
+}
+
+.dialog p {
+  margin: 0;
+  color: var(--muted);
+}
+
+.dialogActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.consoleShell {
+  --console-bg: #f6f7fb;
+  --console-card: #ffffff;
+  --console-line: #e4e7f0;
+  --console-muted: #71768a;
+  --console-ink: #1f2433;
+  --console-purple: #5b4df5;
+  --console-purple-soft: #edeaff;
+  --console-green: #21a865;
+  --console-blue: #3c8cf0;
+  --console-gold: #d69a1f;
+  --console-red: #d84545;
+  display: grid;
+  grid-template-columns: 238px minmax(0, 1fr);
+  min-height: 100vh;
+  color: var(--console-ink);
+  background: var(--console-bg);
+}
+
+.consoleShell .button.primary {
+  background: var(--console-purple);
+}
+
+.consoleShell .button.secondary {
+  color: var(--console-ink);
+  background: var(--console-card);
+  border-color: var(--console-line);
+}
+
+.consoleSidebar {
+  position: sticky;
+  top: 0;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  height: 100vh;
+  padding: 20px 14px;
+  background: var(--console-card);
+  border-right: 1px solid var(--console-line);
+}
+
+.consoleBrand,
+.consoleUser {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.consoleBrand {
+  padding: 0 8px 22px;
+  border-bottom: 1px solid var(--console-line);
+}
+
+.consoleBrand span {
+  display: grid;
+  width: 40px;
+  height: 40px;
+  place-items: center;
+  color: white;
+  background: var(--console-purple);
+  border-radius: 8px;
+}
+
+.consoleBrand strong,
+.consoleUser strong {
+  display: block;
+  text-transform: uppercase;
+}
+
+.consoleBrand small,
+.consoleUser small,
+.consoleHeader p,
+.panelHeader small {
+  color: var(--console-muted);
+}
+
+.consoleNav {
+  display: grid;
+  align-content: start;
+  gap: 20px;
+  padding-top: 20px;
+}
+
+.navGroup {
+  display: grid;
+  gap: 6px;
+}
+
+.navGroup p {
+  margin: 0 8px 4px;
+  color: #a2a7b8;
+  font-size: 0.72rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.navGroup button {
+  display: flex;
+  width: 100%;
+  min-height: 38px;
+  align-items: center;
+  gap: 9px;
+  padding: 8px 10px;
+  color: #555b70;
+  background: transparent;
+  border: 0;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 800;
+  text-align: left;
+}
+
+.navGroup button.active {
+  color: var(--console-purple);
+  background: var(--console-purple-soft);
+}
+
+.navGlyph {
+  display: grid;
+  width: 18px;
+  height: 18px;
+  place-items: center;
+  color: inherit;
+  background: rgba(91, 77, 245, 0.1);
+  border-radius: 5px;
+  font-size: 0.68rem;
+  font-weight: 900;
+}
+
+.consoleUser {
+  min-width: 0;
+  padding: 14px 8px 0;
+  border-top: 1px solid var(--console-line);
+}
+
+.consoleUser > span {
+  display: grid;
+  flex: 0 0 auto;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  color: white;
+  background: var(--console-purple);
+  border-radius: 50%;
+  font-weight: 900;
+}
+
+.consoleUser div {
+  min-width: 0;
+  flex: 1;
+}
+
+.consoleUser strong,
+.consoleUser small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.consoleMain {
+  min-width: 0;
+  padding: 24px;
+}
+
+.consoleHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.consoleHeader h1 {
+  margin: 0;
+  color: var(--console-ink);
+  font-size: 1.9rem;
+  line-height: 1.1;
+  text-transform: uppercase;
+}
+
+.consoleHeader p {
+  margin: 4px 0 0;
+  font-weight: 700;
+}
+
+.consoleActions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.consoleNotice {
+  margin: 0 0 14px;
+  padding: 10px 12px;
+  color: #245c42;
+  background: #e7f8ef;
+  border: 1px solid #bfe8cf;
+  border-radius: 8px;
+  font-weight: 800;
+}
+
+.consoleStack {
+  display: grid;
+  gap: 16px;
+}
+
+.metricGrid {
+  display: grid;
+  gap: 14px;
+}
+
+.metricGrid.four {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.metricGrid.three {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.consoleMetric,
+.consolePanel {
+  background: var(--console-card);
+  border: 1px solid var(--console-line);
+  border-radius: 8px;
+  box-shadow: 0 12px 28px rgba(31, 36, 51, 0.06);
+}
+
+.consoleMetric {
+  display: grid;
+  gap: 6px;
+  min-height: 138px;
+  align-content: start;
+  padding: 18px;
+}
+
+.metricIcon {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border-radius: 8px;
+  font-size: 0.88rem;
+  font-weight: 950;
+}
+
+.consoleMetric.green .metricIcon,
+.progressFill.green {
+  color: var(--console-green);
+  background: #dcf9e7;
+}
+
+.consoleMetric.blue .metricIcon,
+.progressFill.blue {
+  color: var(--console-blue);
+  background: #e4f0ff;
+}
+
+.consoleMetric.purple .metricIcon,
+.progressFill.purple {
+  color: var(--console-purple);
+  background: var(--console-purple-soft);
+}
+
+.consoleMetric.gold .metricIcon,
+.progressFill.gold {
+  color: var(--console-gold);
+  background: #fff3d8;
+}
+
+.consoleMetric.red .metricIcon {
+  color: var(--console-red);
+  background: #ffe5e5;
+}
+
+.consoleMetric > span:not(.metricIcon) {
+  color: var(--console-muted);
+  font-size: 0.84rem;
+  font-weight: 850;
+}
+
+.consoleMetric strong {
+  color: var(--console-ink);
+  font-size: 1.7rem;
+  line-height: 1.1;
+  overflow-wrap: anywhere;
+}
+
+.consoleMetric small {
+  color: var(--console-green);
+  font-weight: 800;
+}
+
+.dashboardCharts,
+.managementGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 16px;
+}
+
+.consolePanel {
+  min-width: 0;
+  padding: 18px;
+}
+
+.panelHeader {
+  display: grid;
+  gap: 3px;
+  margin-bottom: 14px;
+}
+
+.panelHeader.horizontal {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.panelHeader h2 {
+  margin: 0;
+  color: var(--console-ink);
+  font-size: 1.04rem;
+}
+
+.barChart {
+  display: flex;
+  align-items: end;
+  gap: 14px;
+  min-height: 186px;
+  padding: 12px 4px 0;
+}
+
+.barColumn {
+  display: grid;
+  width: 100%;
+  min-width: 42px;
+  height: 160px;
+  align-items: end;
+  gap: 8px;
+}
+
+.barColumn span {
+  display: block;
+  width: 100%;
+  min-height: 12px;
+  background: linear-gradient(180deg, #8de0a1, #4fb86f);
+  border-radius: 6px 6px 2px 2px;
+}
+
+.barColumn small {
+  overflow: hidden;
+  color: var(--console-muted);
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.zoneSales {
+  display: grid;
+  gap: 14px;
+  padding-top: 8px;
+}
+
+.zoneSaleRow {
+  display: grid;
+  grid-template-columns: minmax(92px, 0.8fr) minmax(120px, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+}
+
+.zoneSaleRow span,
+.zoneSaleRow strong {
+  font-size: 0.86rem;
+  font-weight: 850;
+}
+
+.progressTrack {
+  display: block;
+  width: 100%;
+  height: 9px;
+  overflow: hidden;
+  background: #edf0f6;
+  border-radius: 999px;
+}
+
+.progressFill {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+}
+
+.progressFill.green {
+  background: var(--console-green);
+}
+
+.progressFill.blue {
+  background: var(--console-blue);
+}
+
+.progressFill.purple {
+  background: var(--console-purple);
+}
+
+.progressFill.gold {
+  background: var(--console-gold);
+}
+
+.consoleTable {
+  min-width: 720px;
+  color: var(--console-ink);
+}
+
+.consoleTable th,
+.consoleTable td {
+  border-bottom-color: var(--console-line);
+}
+
+.consoleTable th {
+  color: #9aa0b2;
+  font-size: 0.73rem;
+}
+
+.consoleTable td {
+  font-size: 0.88rem;
+  font-weight: 700;
+}
+
+.statusPill,
+.softBadge {
+  display: inline-flex;
+  min-height: 24px;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 9px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 900;
+  text-transform: capitalize;
+  white-space: nowrap;
+}
+
+.softBadge {
+  color: var(--console-purple);
+  background: var(--console-purple-soft);
+}
+
+.statusPill.paid,
+.statusPill.completed,
+.statusPill.confirmed,
+.statusPill.vip {
+  color: #137246;
+  background: #dff8ea;
+}
+
+.statusPill.pending {
+  color: #9a6500;
+  background: #fff0ca;
+}
+
+.statusPill.expired,
+.statusPill.cancelled {
+  color: var(--console-red);
+  background: #ffe5e5;
+}
+
+.statusPill.regular {
+  color: var(--console-blue);
+  background: #e4f0ff;
+}
+
+.moneyCell {
+  color: var(--console-green);
+}
+
+.compactForm {
+  margin-top: 0;
+}
+
+.requiredStar {
+  color: var(--console-red);
+}
+
+.inlineFilter {
+  min-width: min(310px, 100%);
+}
+
+.compactFilters {
+  width: min(420px, 100%);
+}
+
+.tableInput {
+  width: 108px;
+  min-height: 34px;
+  padding: 6px 9px;
+  background: #f8f9fd;
+}
+
+@media (max-width: 1160px) {
+  .customerGrid,
+  .adminGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .consoleShell {
+    grid-template-columns: 1fr;
+  }
+
+  .consoleSidebar {
+    position: static;
+    height: auto;
+    grid-template-rows: auto auto auto;
+  }
+
+  .consoleNav {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .dashboardCharts,
+  .managementGrid,
+  .metricGrid.four {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .summaryPanel {
+    position: static;
+  }
+
+  .eventFormPanel {
+    grid-row: auto;
+  }
+}
+
+@media (max-width: 760px) {
+  .loginPage {
+    grid-template-columns: 1fr;
+  }
+
+  .loginPoster {
+    min-height: 290px;
+    border-right: 0;
+    border-bottom: 8px solid var(--mustard);
+  }
+
+  .posterFrame {
+    min-height: 230px;
+  }
+
+  .loginPanel {
+    padding: 30px 18px;
+  }
+
+  .topbar {
+    align-items: flex-start;
+    padding: 14px 16px;
+  }
+
+  .sessionName {
+    display: none;
+  }
+
+  .customerGrid,
+  .adminGrid {
+    padding: 14px;
+  }
+
+  .consoleMain {
+    padding: 14px;
+  }
+
+  .consoleHeader,
+  .panelHeader.horizontal {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .consoleActions {
+    justify-content: flex-start;
+  }
+
+  .consoleNav,
+  .dashboardCharts,
+  .managementGrid,
+  .metricGrid.four,
+  .metricGrid.three {
+    grid-template-columns: 1fr;
+  }
+
+  .formGrid,
+  .zoneRow,
+  .filterBar,
+  .reportTotals {
+    grid-template-columns: 1fr;
+  }
+
+  .concertCard {
+    grid-template-columns: 78px 1fr;
+  }
+
+  .concertCard img {
+    width: 78px;
+    height: 106px;
+  }
+
+  .seatMap {
+    grid-template-columns: repeat(auto-fill, minmax(62px, 1fr));
+  }
+}
