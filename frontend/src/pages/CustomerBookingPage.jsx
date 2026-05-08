@@ -9,6 +9,7 @@ import {
   Ticket,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 
 import { api } from "../api";
 import AppShell from "../components/AppShell.jsx";
@@ -196,56 +197,76 @@ export default function CustomerBookingPage() {
 
           <ol className="stepRail">
             {steps.map((label, index) => (
-              <li key={label} className={index === step ? "active" : index < step ? "done" : ""}>
+              <motion.li
+                key={label}
+                className={index === step ? "active" : index < step ? "done" : ""}
+                animate={{ scale: index === step ? 1.05 : 1, opacity: index > step ? 0.6 : 1 }}
+                transition={{ type: "spring", stiffness: 300, damping: 20 }}
+              >
                 <span>{index + 1}</span>
                 <strong>{label}</strong>
-              </li>
+              </motion.li>
             ))}
           </ol>
 
           {notice && <p className="noticeText flowNotice">{notice}</p>}
 
-          <section className="flowCard">
-            {loading && <p className="muted">Loading shows...</p>}
-            {!loading && step === 0 && (
-              <EventDetails concerts={concerts} activeConcert={activeConcert} selectedShowtime={selectedShowtime} onChoose={chooseConcert} />
-            )}
-            {step === 1 && (
-              <SeatSelection
-                zones={seatData.zones}
-                seats={seatData.seats}
-                selectedSeats={selectedSeats}
-                onToggleSeat={toggleSeat}
-              />
-            )}
-            {step === 2 && (
-              <LoginStep
-                guest={guest}
-                setGuest={setGuest}
-                showPassword={showPassword}
-                setShowPassword={setShowPassword}
-              />
-            )}
-            {step === 3 && (
-              <OrderSummary
-                activeConcert={activeConcert}
-                booking={booking}
-                selectedSeatRows={selectedSeatRows}
-                selectedTotal={selectedTotal}
-              />
-            )}
-            {step === 4 && (
-              <PaymentStep payment={payment} setPayment={setPayment} total={booking?.total_amount || selectedTotal} />
-            )}
-            {step === 5 && (
-              <Confirmation
-                guest={guest}
-                activeConcert={activeConcert}
-                booking={booking}
-                paymentRef={paymentRef}
-                selectedSeatRows={selectedSeatRows}
-              />
-            )}
+          <section className="flowCard" style={{ overflow: "hidden", position: "relative" }}>
+            <AnimatePresence mode="wait">
+              {loading ? (
+                <motion.div key="loading" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }} className="p-4">
+                  <p className="muted">Loading shows...</p>
+                </motion.div>
+              ) : (
+                <motion.div
+                  key={step}
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -20 }}
+                  transition={{ duration: 0.3, ease: "easeInOut" }}
+                >
+                  {step === 0 && (
+                    <EventDetails concerts={concerts} activeConcert={activeConcert} selectedShowtime={selectedShowtime} onChoose={chooseConcert} />
+                  )}
+                  {step === 1 && (
+                    <SeatSelection
+                      zones={seatData.zones}
+                      seats={seatData.seats}
+                      selectedSeats={selectedSeats}
+                      onToggleSeat={toggleSeat}
+                    />
+                  )}
+                  {step === 2 && (
+                    <LoginStep
+                      guest={guest}
+                      setGuest={setGuest}
+                      showPassword={showPassword}
+                      setShowPassword={setShowPassword}
+                    />
+                  )}
+                  {step === 3 && (
+                    <OrderSummary
+                      activeConcert={activeConcert}
+                      booking={booking}
+                      selectedSeatRows={selectedSeatRows}
+                      selectedTotal={selectedTotal}
+                    />
+                  )}
+                  {step === 4 && (
+                    <PaymentStep payment={payment} setPayment={setPayment} total={booking?.total_amount || selectedTotal} />
+                  )}
+                  {step === 5 && (
+                    <Confirmation
+                      guest={guest}
+                      activeConcert={activeConcert}
+                      booking={booking}
+                      paymentRef={paymentRef}
+                      selectedSeatRows={selectedSeatRows}
+                    />
+                  )}
+                </motion.div>
+              )}
+            </AnimatePresence>
           </section>
 
           <footer className="flowActions">

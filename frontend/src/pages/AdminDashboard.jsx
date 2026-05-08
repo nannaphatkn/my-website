@@ -1,5 +1,6 @@
 import { CalendarPlus, LogOut, Music2, RefreshCw, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 
 import { api } from "../api";
@@ -366,8 +367,16 @@ export default function AdminDashboard() {
         </header>
         {notice && <p className="consoleNotice">{notice}</p>}
 
-        {active === "dashboard" && (
-          <div className="consoleStack">
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={active}
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -15 }}
+            transition={{ duration: 0.3 }}
+          >
+            {active === "dashboard" && (
+              <div className="consoleStack">
             <div className="metricGrid four">
               <Metric
                 glyph="$"
@@ -1010,6 +1019,8 @@ export default function AdminDashboard() {
             </Panel>
           </div>
         )}
+          </motion.div>
+        </AnimatePresence>
       </section>
 
       <ConfirmDialog
