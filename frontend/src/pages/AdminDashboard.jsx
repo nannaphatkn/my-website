@@ -167,7 +167,7 @@ export default function AdminDashboard() {
     confirmBody = `Assign VIP privilege review for ${confirmTarget.item.customer}?`;
   }
 
-  async function loadAll(nextFilters = filters, showtime = selectedShowtime) {
+  async function loadAll(nextFilters = filters, showtime = selectedShowtime, isInitial = false) {
     const [
       concertData,
       revenueData,
@@ -189,12 +189,12 @@ export default function AdminDashboard() {
     setInventory(inventoryData);
     setCleanup(cleanupData);
     setLoyalty(loyaltyData);
-    if (!showtime && inventoryData.showtimes.length)
+    if (isInitial && !showtime && inventoryData.showtimes.length)
       setSelectedShowtime(String(inventoryData.showtimes[0].showtime_id));
   }
 
   useEffect(() => {
-    loadAll().catch((err) => setNotice(err.message));
+    loadAll(filters, selectedShowtime, true).catch((err) => setNotice(err.message));
   }, []);
 
   function updateField(field, value) {
