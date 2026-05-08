@@ -2137,3 +2137,795 @@ label {
     min-height: 340px;
   }
 }
+
+/* ═══════════════════════════════════════════════════════════════
+   Ticketmelon-style Customer Booking Page
+   ═══════════════════════════════════════════════════════════════ */
+
+.tmPage {
+  min-height: calc(100vh - 72px);
+  background: var(--paper-deep);
+}
+
+/* ── Search bar ──────────────────────────────────────────────── */
+.tmSearchBar {
+  padding: 20px 24px;
+  background: rgba(18, 21, 41, 0.6);
+  border-bottom: 1px solid var(--line);
+}
+
+.tmSearchInput {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: 600px;
+  margin: 0 auto;
+  padding: 10px 16px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--muted);
+}
+
+.tmSearchInput input {
+  flex: 1;
+  background: transparent;
+  border: 0;
+  color: var(--ink);
+  font-size: 0.92rem;
+  outline: none;
+}
+
+.tmSearchInput input::placeholder { color: var(--muted); }
+
+/* ── Browse content ──────────────────────────────────────────── */
+.tmBrowseContent {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 32px 24px 60px;
+}
+
+.tmBrowseTitle {
+  margin: 0 0 18px;
+  color: var(--ink);
+  font-size: 1.5rem;
+  font-weight: 800;
+}
+
+.tmAllTitle { margin-top: 48px; }
+
+/* ── Event card scroll (Recommended) ─────────────────────────── */
+.tmEventScroll {
+  display: flex;
+  gap: 16px;
+  overflow-x: auto;
+  padding-bottom: 8px;
+  scroll-snap-type: x mandatory;
+}
+
+.tmEventScroll::-webkit-scrollbar { height: 4px; }
+.tmEventScroll::-webkit-scrollbar-thumb { background: var(--line); border-radius: 4px; }
+
+.tmEventCard {
+  display: flex;
+  flex-direction: column;
+  min-width: 200px;
+  max-width: 220px;
+  flex-shrink: 0;
+  scroll-snap-align: start;
+  background: rgba(18, 21, 41, 0.6);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  overflow: hidden;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-align: left;
+  color: var(--ink);
+}
+
+.tmEventCard:hover {
+  border-color: var(--mustard);
+  transform: translateY(-3px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+}
+
+.tmEventCard img {
+  width: 100%;
+  height: 260px;
+  object-fit: cover;
+}
+
+.tmEventCardBody {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px;
+}
+
+.tmEventCardBody strong {
+  font-size: 0.82rem;
+  font-weight: 800;
+  line-height: 1.3;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.tmEventCardBody small {
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.tmViewDetails {
+  color: #6d5dfc;
+  font-size: 0.78rem;
+  font-weight: 700;
+  margin-top: 4px;
+}
+
+/* ── Category tabs ───────────────────────────────────────────── */
+.tmCatTabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.tmCatBtn {
+  padding: 8px 20px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: rgba(18, 21, 41, 0.5);
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.tmCatBtn:hover { border-color: var(--mustard); color: var(--ink); }
+.tmCatBtn.active { background: #6d5dfc; color: white; border-color: #6d5dfc; }
+
+/* ── Event grid (All Events) ─────────────────────────────────── */
+.tmEventGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: 16px;
+}
+
+.tmGridCard { max-width: none; min-width: 0; }
+
+.tmShowAll {
+  text-align: center;
+  margin-top: 28px;
+  color: var(--ink);
+  font-size: 1.1rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+/* ── Hero banner ─────────────────────────────────────────────── */
+.tmHero {
+  position: relative;
+  min-height: 420px;
+  background-color: #0a0a1a;
+  background-position: center;
+  background-size: cover;
+}
+
+.tmHeroOverlay {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 420px;
+  padding: 40px 24px;
+  text-align: center;
+  color: white;
+  background: linear-gradient(180deg, rgba(10, 10, 26, 0.3), rgba(10, 10, 26, 0.85));
+}
+
+.tmHeroTitle {
+  margin: 0;
+  font-size: clamp(2.8rem, 7vw, 5rem);
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.tmHeroMeta {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px 16px;
+  margin-top: 16px;
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 0.82rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.tmHeroLabel {
+  margin: 18px 0 0;
+  font-size: clamp(4rem, 10vw, 8rem);
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  line-height: 0.85;
+  opacity: 0.3;
+}
+
+/* ── Content area ────────────────────────────────────────────── */
+.tmContent {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 32px 24px 60px;
+}
+
+.tmEventTitle {
+  margin: 0 0 20px;
+  color: var(--ink);
+  font-size: clamp(1.3rem, 3vw, 1.7rem);
+  font-weight: 800;
+}
+
+/* ── Info rows ───────────────────────────────────────────────── */
+.tmInfoRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 32px;
+  margin-bottom: 10px;
+}
+
+.tmInfoItem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 0.92rem;
+  font-weight: 700;
+}
+
+.tmInfoItem svg {
+  color: var(--mustard);
+  flex-shrink: 0;
+}
+
+.tmPriceStr {
+  font-size: 0.82rem;
+}
+
+/* ── Section titles ──────────────────────────────────────────── */
+.tmSectionTitle {
+  margin: 28px 0 14px;
+  color: var(--ink);
+  font-size: 1.1rem;
+  font-weight: 800;
+}
+
+/* ── Showtime picker ─────────────────────────────────────────── */
+.tmShowtimePicker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.tmShowtimeBtn {
+  display: grid;
+  gap: 4px;
+  min-width: 260px;
+  padding: 14px 18px;
+  text-align: left;
+  color: var(--muted);
+  background: rgba(18, 21, 41, 0.7);
+  border: 2px solid var(--line);
+  border-radius: 10px;
+  transition: all 0.2s;
+}
+
+.tmShowtimeBtn:hover {
+  border-color: var(--mustard);
+}
+
+.tmShowtimeBtn.active {
+  color: var(--ink);
+  border-color: var(--mustard);
+  box-shadow: 0 0 0 3px rgba(32, 211, 245, 0.15);
+}
+
+.tmShowtimeBtn strong {
+  color: var(--ink);
+  font-size: 0.92rem;
+}
+
+.tmShowtimeBtn small {
+  font-size: 0.78rem;
+}
+
+.tmNotice {
+  margin-bottom: 14px;
+  padding: 10px 14px;
+  border-radius: 8px;
+}
+
+/* ── Description section ─────────────────────────────────────── */
+.tmDescSection {
+  display: grid;
+  grid-template-columns: minmax(260px, 360px) 1fr;
+  gap: 28px;
+  margin: 20px 0 28px;
+}
+
+.tmPosterCard {
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+}
+
+.tmPosterCard img {
+  display: block;
+  width: 100%;
+  height: auto;
+  object-fit: cover;
+}
+
+.tmDescText {
+  color: var(--muted);
+  font-size: 0.92rem;
+  line-height: 1.7;
+}
+
+.tmDescMeta {
+  margin-top: 18px;
+  color: var(--muted);
+  font-size: 0.88rem;
+  line-height: 1.8;
+}
+
+.tmDescMeta strong {
+  color: var(--ink);
+}
+
+.tmBuyBtn {
+  width: 100%;
+  max-width: 380px;
+  margin: 0 auto;
+  display: flex;
+}
+
+.tmBackBtn {
+  margin-top: 20px;
+}
+
+/* ── Stage map (Ticketmelon layout) ───────────────────────────── */
+.tmMapWrapper {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 24px;
+  align-items: start;
+  margin-bottom: 28px;
+}
+
+.tmStageMap {
+  padding: 20px;
+  background: #f5f0e8;
+  border-radius: 12px;
+  border: 1px solid #d5c9b4;
+}
+
+.tmStageLabel {
+  width: 40%;
+  margin: 0 auto 0;
+  padding: 18px 24px;
+  text-align: center;
+  color: #fff;
+  background: #1a1a1a;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence baseFrequency='0.8'/%3E%3C/filter%3E%3Crect width='100' height='100' filter='url(%23n)' opacity='0.08'/%3E%3C/svg%3E");
+  border-radius: 0;
+  font-weight: 900;
+  font-size: 1.5rem;
+  letter-spacing: 0.12em;
+  position: relative;
+}
+
+.tmStageLabel::after {
+  content: "";
+  display: block;
+  width: 36%;
+  height: 60px;
+  margin: 0 auto;
+  background: #1a1a1a;
+}
+
+/* ── Map rows ────────────────────────────────────────────────── */
+.tmMapRow {
+  display: flex;
+  align-items: stretch;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.tmMapSide {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  min-width: 55px;
+}
+
+.tmMapCenter {
+  flex: 1;
+  display: flex;
+  gap: 6px;
+}
+
+/* ── Zone blocks (buttons) ───────────────────────────────────── */
+.tmBlock {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  padding: 12px 8px;
+  border: 2px solid transparent;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-family: inherit;
+  min-height: 60px;
+}
+
+.tmBlock:hover { opacity: 0.82; }
+.tmBlock.selected {
+  border-color: #1a1a1a;
+  box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.25);
+  transform: scale(1.04);
+}
+
+.tmBlock strong { font-size: 0.85rem; font-weight: 900; letter-spacing: 0.02em; }
+.tmBlock small { font-size: 0.62rem; font-weight: 700; opacity: 0.8; }
+
+/* Zone type colors */
+.tmVip      { background: #c8c0b4; color: #333; }
+.tmStanding { background: #d4d88c; color: #333; }
+.tmZoneA    { background: #c9b89d; color: #333; transform: skewY(-3deg); }
+.tmZoneB    { background: #c9b89d; color: #333; }
+.tmZoneC    { background: #8b7355; color: #fff; }
+
+.tmSideRight .tmZoneA { transform: skewY(3deg); }
+
+/* Row-specific layouts */
+.tmRow1Center { justify-content: center; }
+.tmRow1Center .tmBlock { flex: 1; max-width: 160px; min-height: 80px; }
+
+.tmRow2Center { justify-content: center; }
+.tmRow2Center .tmBlock { flex: 1; max-width: 120px; min-height: 70px; }
+
+.tmRow3Center { flex-direction: column; align-items: center; gap: 4px; }
+.tmRow4Center { justify-content: center; }
+.tmRow4Center .tmBlock { flex: 1; max-width: 100px; min-height: 55px; }
+
+/* ── Gates ────────────────────────────────────────────────────── */
+.tmGateLabel {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 8px;
+  color: #fff;
+  background: #c0392b;
+  border-radius: 3px;
+  font-size: 0.6rem;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
+.tmGate4 { background: #c0392b; }
+
+/* ── Control & Blocked ───────────────────────────────────────── */
+.tmControlBar {
+  width: 70%;
+  padding: 8px 16px;
+  text-align: center;
+  color: #fff;
+  background: #555;
+  border-radius: 4px;
+  font-size: 0.72rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+}
+
+.tmBlockedLabel {
+  padding: 3px 12px;
+  color: #555;
+  background: #eee;
+  border: 1px solid #bbb;
+  border-radius: 3px;
+  font-size: 0.6rem;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+}
+
+/* ── REMARK box ──────────────────────────────────────────────── */
+.tmRemarkBox {
+  min-width: 220px;
+  padding: 20px;
+  background: #1a1a1a;
+  border: 3px solid #333;
+  border-radius: 8px;
+  color: #fff;
+}
+
+.tmRemarkBox h4 {
+  margin: 0 0 16px;
+  text-align: center;
+  font-size: 1.1rem;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  border-bottom: 2px solid #444;
+  padding-bottom: 10px;
+}
+
+.tmRemarkRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #ccc;
+}
+
+.tmRemarkRow strong {
+  color: #fff;
+  margin-left: auto;
+  white-space: nowrap;
+}
+
+.tmRemarkRow small {
+  color: #999;
+  font-size: 0.65rem;
+  min-width: 70px;
+}
+
+.tmDot {
+  display: inline-block;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.tmDotVip       { background: radial-gradient(circle at 40% 35%, #f0e8c8, #d4c89c 60%, #a8986c); }
+.tmDotStanding  { background: radial-gradient(circle at 40% 35%, #f5d0c0, #e0a890 60%, #c08070); }
+.tmDotA         { background: radial-gradient(circle at 40% 35%, #d8c8a8, #b8a478 60%, #907848); }
+.tmDotB         { background: radial-gradient(circle at 40% 35%, #c8b898, #a89068 60%, #806840); }
+.tmDotC         { background: radial-gradient(circle at 40% 35%, #988868, #706040 60%, #504020); }
+
+.tmRemarkNote {
+  margin: 14px 0 0;
+  color: #888;
+  font-size: 0.65rem;
+  line-height: 1.4;
+}
+
+/* ── Seat grid ───────────────────────────────────────────────── */
+.tmSeatSection {
+  margin: 28px 0;
+}
+
+.tmSeatSection h4 {
+  margin: 0 0 14px;
+  color: var(--ink);
+  font-size: 1rem;
+}
+
+.tmSeatGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(62px, 1fr));
+  gap: 6px;
+}
+
+/* ── Ticket info panel ───────────────────────────────────────── */
+.tmTicketInfo {
+  margin-top: 24px;
+  padding: 20px;
+  background: rgba(18, 21, 41, 0.7);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+
+.tmTicketInfo h4 {
+  margin: 0 0 14px;
+  color: var(--ink);
+  font-size: 1rem;
+}
+
+.tmTicketMeta {
+  display: grid;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 0.88rem;
+}
+
+.tmTicketMeta div {
+  display: flex;
+  gap: 8px;
+}
+
+.tmTicketMeta strong {
+  color: var(--ink);
+}
+
+.tmTotalPrice {
+  color: var(--mustard) !important;
+  font-size: 1.2rem;
+}
+
+.tmTicketActions {
+  display: flex;
+  gap: 12px;
+  margin-top: 18px;
+}
+
+.tmTicketActions .button {
+  flex: 1;
+}
+
+/* ── Checkout grid ───────────────────────────────────────────── */
+.tmCheckoutGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  margin-top: 16px;
+}
+
+.tmOrderSummary {
+  padding: 20px;
+  background: rgba(18, 21, 41, 0.7);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+
+.tmOrderSummary h4 {
+  margin: 0 0 14px;
+  color: var(--ink);
+}
+
+.tmOrderRow {
+  display: flex;
+  justify-content: space-between;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 0.88rem;
+}
+
+.tmOrderRow strong {
+  color: var(--ink);
+}
+
+.tmOrderTotal {
+  border-bottom: 0;
+  font-size: 1.15rem;
+  font-weight: 900;
+}
+
+.tmOrderTotal strong {
+  color: var(--mustard);
+}
+
+.tmHoldNote {
+  margin: 10px 0 0;
+  color: var(--mustard);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.tmPaymentForm {
+  display: grid;
+  gap: 14px;
+  padding: 20px;
+  background: rgba(18, 21, 41, 0.7);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+
+.tmPayRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.tmPayBtn {
+  margin-top: 8px;
+}
+
+/* ── Confirmation ────────────────────────────────────────────── */
+.tmConfirmation {
+  text-align: center;
+  padding: 40px 20px;
+}
+
+.tmConfirmation h3 {
+  margin: 18px 0 8px;
+  color: var(--ink);
+  font-size: 1.6rem;
+}
+
+.tmConfirmation > p {
+  color: var(--muted);
+  margin-bottom: 24px;
+}
+
+.tmConfirmMeta {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  max-width: 520px;
+  margin: 0 auto 28px;
+  text-align: left;
+}
+
+.tmConfirmMeta div {
+  padding: 12px;
+  background: rgba(18, 21, 41, 0.7);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.tmConfirmMeta span {
+  display: block;
+  color: var(--muted);
+  font-size: 0.76rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+
+.tmConfirmMeta strong {
+  color: var(--ink);
+}
+
+/* ── Responsive ──────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  .tmDescSection {
+    grid-template-columns: 1fr;
+  }
+
+  .tmCheckoutGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .tmMapWrapper {
+    grid-template-columns: 1fr;
+  }
+
+  .tmRemarkBox {
+    min-width: unset;
+  }
+
+  .tmHero {
+    min-height: 300px;
+  }
+
+  .tmHeroOverlay {
+    min-height: 300px;
+  }
+
+  .tmConfirmMeta {
+    grid-template-columns: 1fr;
+  }
+
+  .tmMapSide {
+    min-width: 40px;
+  }
+
+  .tmBlock strong {
+    font-size: 0.7rem;
+  }
+}

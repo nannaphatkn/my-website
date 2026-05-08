@@ -145,78 +145,91 @@ VALUES
     )
 ON CONFLICT (email) DO NOTHING;
 
-INSERT INTO venue (venue_name, address, city, capacity)
-VALUES
-    ('Moonlit Hall', '12 Analog Lane', 'Bangkok', 260),
-    ('Velvet Factory', '88 Cassette Road', 'Chiang Mai', 420)
+-- ═══ VENUES ═══
+INSERT INTO venue (venue_name, address, city, capacity) VALUES
+  ('Thunder Dome','Popular 3 Rd, Bangsue','Bangkok',5000),
+  ('Impact Arena','99 Popular Rd, Pak Kret','Bangkok',12000),
+  ('MCC Hall','The Mall Bangkapi','Bangkok',3000),
+  ('Samyan Mitrtown Hall','Rama IV Rd','Bangkok',2000),
+  ('Show DC','Show DC Oasis Arena','Bangkok',4000)
 ON CONFLICT (venue_name, city) DO NOTHING;
 
-INSERT INTO concert (title, artist, genre, description, poster_url)
-VALUES
-    (
-        'Summer Nostalgia Night',
-        'The Apricot Tapes',
-        'Indie Rock',
-        'Warm guitars, brass-lit choruses, and bittersweet singalongs.',
-        'https://images.unsplash.com/photo-1501386761578-eac5c94b800a?auto=format&fit=crop&w=900&q=80'
-    ),
-    (
-        'Velvet Echoes',
-        'Cassette Garden',
-        'Retro Pop',
-        'A late-night set of jangly melodies and analog synth color.',
-        'https://images.unsplash.com/photo-1499364615650-ec38552f4f34?auto=format&fit=crop&w=900&q=80'
-    )
+-- ═══ CONCERTS ═══
+INSERT INTO concert (title, artist, genre, description, poster_url) VALUES
+  ('JAEHYUN FAN-CON TOUR «Mono» in BANGKOK','JAEHYUN','Entertainment','กลับมาพบกันอีกครั้ง! SM True ร่วมกับ NCT จัดคอนเสิร์ตสุดยิ่งใหญ่ ครั้งแรกในไทย กับ JAEHYUN in NCT','/posters/jaehyun.jpg'),
+  ('2026 NCT JNJM FANMEETING TOUR [DUALITY] #BANGKOK','NCT','Entertainment','NCT กลับมาพร้อมแฟนมีทติ้งทัวร์ DUALITY สุดพิเศษ','/posters/nct_duality.jpg'),
+  ('DUANG WITH YOU Love is all around Show & Screening','Various','Entertainment','งานแสดงและฉายภาพยนตร์สุดพิเศษ DUANG WITH YOU','/posters/duang.png'),
+  ('PEPSI Presents PROXIE The 3rd Concert "PROXIMA-B"','PROXIE','Entertainment','PROXIE คอนเสิร์ตครั้งที่ 3 สุดยิ่งใหญ่','/posters/proxie.jpg'),
+  ('CLUB 30 CONCERT','Various','Entertainment','คอนเสิร์ตรวมศิลปินระดับตำนาน CLUB 30','/posters/club30.jpg'),
+  ('BUS because of you i shine LIGHT AS ONE CONCERT','BUS','Entertainment','BUS because of you i shine คอนเสิร์ตสุดพิเศษ LIGHT AS ONE','/posters/bus.jpg'),
+  ('NANGFANG 6 MUSIC CAMP FESTIVAL 2026','Various','Entertainment','เทศกาลดนตรี NANGFANG ครั้งที่ 6','/posters/nangfang_real.png'),
+  ('OCEAN NIGHT BY HEYHA MUSIC FESTIVAL','Various','Lifestyle','เทศกาลดนตรีริมทะเล OCEAN NIGHT สุดมันส์','/posters/ocean.jpg'),
+  ('Daniel Caesar - Son of Spergy Tour in Bangkok','Daniel Caesar','Entertainment','Daniel Caesar กลับมาพร้อม Son of Spergy Tour','/posters/daniel_real.png'),
+  ('มาม่า Presents GDH โตมาตั้วยกัน ออร์เคสตรูบูฟรีคอนเสิร์ต','GDH','Lifestyle','คอนเสิร์ตออร์เคสตร้าสุดพิเศษจาก GDH','/posters/gdh_real.png')
 ON CONFLICT DO NOTHING;
 
 INSERT INTO admin_concert (admin_id, concert_id)
-SELECT a.admin_id, c.concert_id
-FROM admin a
-CROSS JOIN concert c
-WHERE a.email = 'admin@example.com'
-ON CONFLICT DO NOTHING;
+SELECT a.admin_id, c.concert_id FROM admin a CROSS JOIN concert c WHERE a.email='admin@example.com' ON CONFLICT DO NOTHING;
 
-INSERT INTO showtime (concert_id, venue_id, show_date, show_time, sales_start, sales_end)
-SELECT c.concert_id, v.venue_id, DATE '2026-07-18', TIME '19:30', NOW() - INTERVAL '1 day', TIMESTAMPTZ '2026-07-18 18:30:00+07'
-FROM concert c
-JOIN venue v ON v.venue_name = 'Moonlit Hall' AND v.city = 'Bangkok'
-WHERE c.title = 'Summer Nostalgia Night'
-ON CONFLICT (venue_id, show_date, show_time) DO NOTHING;
+-- ═══ SHOWTIMES ═══
+-- JAEHYUN (2 shows)
+INSERT INTO showtime (concert_id,venue_id,show_date,show_time,sales_start,sales_end)
+SELECT c.concert_id,v.venue_id,d::date,t::time,NOW()-INTERVAL '7 days',(d||' '||t)::timestamptz - INTERVAL '1 hour'
+FROM concert c JOIN venue v ON v.venue_name='Thunder Dome' CROSS JOIN (VALUES('2026-06-27','18:00'),('2026-06-28','16:00')) AS dt(d,t)
+WHERE c.title='JAEHYUN FAN-CON TOUR «Mono» in BANGKOK' ON CONFLICT (venue_id,show_date,show_time) DO NOTHING;
+-- NCT DUALITY
+INSERT INTO showtime (concert_id,venue_id,show_date,show_time,sales_start,sales_end)
+SELECT c.concert_id,v.venue_id,DATE '2026-08-08',TIME '18:00',NOW()-INTERVAL '7 days',TIMESTAMPTZ '2026-08-08 17:00+07'
+FROM concert c JOIN venue v ON v.venue_name='Impact Arena' WHERE c.title LIKE '%DUALITY%' ON CONFLICT (venue_id,show_date,show_time) DO NOTHING;
+-- DUANG WITH YOU
+INSERT INTO showtime (concert_id,venue_id,show_date,show_time,sales_start,sales_end)
+SELECT c.concert_id,v.venue_id,DATE '2026-04-18',TIME '19:00',NOW()-INTERVAL '30 days',TIMESTAMPTZ '2026-04-18 18:00+07'
+FROM concert c JOIN venue v ON v.venue_name='Samyan Mitrtown Hall' WHERE c.title LIKE '%DUANG%' ON CONFLICT (venue_id,show_date,show_time) DO NOTHING;
+-- PROXIE
+INSERT INTO showtime (concert_id,venue_id,show_date,show_time,sales_start,sales_end)
+SELECT c.concert_id,v.venue_id,DATE '2026-01-24',TIME '18:30',NOW()-INTERVAL '60 days',TIMESTAMPTZ '2026-01-24 17:30+07'
+FROM concert c JOIN venue v ON v.venue_name='MCC Hall' WHERE c.title LIKE '%PROXIE%' ON CONFLICT (venue_id,show_date,show_time) DO NOTHING;
+-- CLUB 30
+INSERT INTO showtime (concert_id,venue_id,show_date,show_time,sales_start,sales_end)
+SELECT c.concert_id,v.venue_id,d::date,TIME '19:00',NOW()-INTERVAL '7 days',(d||' 18:00')::timestamptz
+FROM concert c JOIN venue v ON v.venue_name='Thunder Dome' CROSS JOIN (VALUES('2026-06-27'),('2026-06-28')) AS dt(d)
+WHERE c.title='CLUB 30 CONCERT' ON CONFLICT (venue_id,show_date,show_time) DO NOTHING;
+-- BUS LIGHT AS ONE
+INSERT INTO showtime (concert_id,venue_id,show_date,show_time,sales_start,sales_end)
+SELECT c.concert_id,v.venue_id,d::date,TIME '18:00',NOW()-INTERVAL '7 days',(d||' 17:00')::timestamptz
+FROM concert c JOIN venue v ON v.venue_name='Impact Arena' CROSS JOIN (VALUES('2026-07-24'),('2026-07-25'),('2026-07-26')) AS dt(d)
+WHERE c.title LIKE '%BUS%LIGHT%' ON CONFLICT (venue_id,show_date,show_time) DO NOTHING;
+-- NANGFANG
+INSERT INTO showtime (concert_id,venue_id,show_date,show_time,sales_start,sales_end)
+SELECT c.concert_id,v.venue_id,DATE '2026-06-06',TIME '16:00',NOW()-INTERVAL '7 days',TIMESTAMPTZ '2026-06-06 15:00+07'
+FROM concert c JOIN venue v ON v.venue_name='Show DC' WHERE c.title LIKE '%NANGFANG%' ON CONFLICT (venue_id,show_date,show_time) DO NOTHING;
+-- OCEAN NIGHT
+INSERT INTO showtime (concert_id,venue_id,show_date,show_time,sales_start,sales_end)
+SELECT c.concert_id,v.venue_id,DATE '2026-06-20',TIME '17:00',NOW()-INTERVAL '7 days',TIMESTAMPTZ '2026-06-20 16:00+07'
+FROM concert c JOIN venue v ON v.venue_name='Show DC' WHERE c.title LIKE '%OCEAN%' ON CONFLICT (venue_id,show_date,show_time) DO NOTHING;
+-- Daniel Caesar
+INSERT INTO showtime (concert_id,venue_id,show_date,show_time,sales_start,sales_end)
+SELECT c.concert_id,v.venue_id,DATE '2026-06-08',TIME '19:00',NOW()-INTERVAL '7 days',TIMESTAMPTZ '2026-06-08 18:00+07'
+FROM concert c JOIN venue v ON v.venue_name='Impact Arena' WHERE c.title LIKE '%Daniel Caesar%' ON CONFLICT (venue_id,show_date,show_time) DO NOTHING;
+-- GDH
+INSERT INTO showtime (concert_id,venue_id,show_date,show_time,sales_start,sales_end)
+SELECT c.concert_id,v.venue_id,DATE '2026-06-14',TIME '18:00',NOW()-INTERVAL '7 days',TIMESTAMPTZ '2026-06-14 17:00+07'
+FROM concert c JOIN venue v ON v.venue_name='MCC Hall' WHERE c.title LIKE '%GDH%' ON CONFLICT (venue_id,show_date,show_time) DO NOTHING;
 
-INSERT INTO showtime (concert_id, venue_id, show_date, show_time, sales_start, sales_end)
-SELECT c.concert_id, v.venue_id, DATE '2026-08-02', TIME '20:00', NOW() - INTERVAL '1 day', TIMESTAMPTZ '2026-08-02 19:00:00+07'
-FROM concert c
-JOIN venue v ON v.venue_name = 'Velvet Factory' AND v.city = 'Chiang Mai'
-WHERE c.title = 'Velvet Echoes'
-ON CONFLICT (venue_id, show_date, show_time) DO NOTHING;
-
+-- ═══ ZONES (for all showtimes) ═══
+-- JAEHYUN zones
 INSERT INTO zone (showtime_id, zone_name, price, total_seat)
-SELECT s.showtime_id, z.zone_name, z.price, z.total_seat
-FROM showtime s
-JOIN concert c ON c.concert_id = s.concert_id
-CROSS JOIN (
-    VALUES
-        ('Front Row', 2800.00, 20),
-        ('Balcony', 1800.00, 30),
-        ('Standing', 1200.00, 50)
-) AS z(zone_name, price, total_seat)
-WHERE c.title = 'Summer Nostalgia Night'
-ON CONFLICT (showtime_id, zone_name) DO NOTHING;
-
+SELECT s.showtime_id, z.zone_name, z.price, z.total_seat FROM showtime s JOIN concert c ON c.concert_id=s.concert_id
+CROSS JOIN (VALUES('VIP PACKAGE',6600.00,30),('STANDING',5600.00,50),('ZONE A',4700.00,40),('ZONE B',3700.00,60),('ZONE C',2700.00,80)) AS z(zone_name,price,total_seat)
+WHERE c.title='JAEHYUN FAN-CON TOUR «Mono» in BANGKOK' ON CONFLICT (showtime_id,zone_name) DO NOTHING;
+-- Other concerts: standard 3-zone layout
 INSERT INTO zone (showtime_id, zone_name, price, total_seat)
-SELECT s.showtime_id, z.zone_name, z.price, z.total_seat
-FROM showtime s
-JOIN concert c ON c.concert_id = s.concert_id
-CROSS JOIN (
-    VALUES
-        ('Golden Pit', 2400.00, 25),
-        ('Main Floor', 1500.00, 45)
-) AS z(zone_name, price, total_seat)
-WHERE c.title = 'Velvet Echoes'
-ON CONFLICT (showtime_id, zone_name) DO NOTHING;
+SELECT s.showtime_id, z.zone_name, z.price, z.total_seat FROM showtime s JOIN concert c ON c.concert_id=s.concert_id
+CROSS JOIN (VALUES('VIP',4500.00,30),('Standard',2500.00,60),('Economy',1500.00,100)) AS z(zone_name,price,total_seat)
+WHERE c.title NOT LIKE '%JAEHYUN%' ON CONFLICT (showtime_id,zone_name) DO NOTHING;
 
+-- ═══ SEATS ═══
 INSERT INTO seat (zone_id, seat_no)
-SELECT z.zone_id, CONCAT(UPPER(SUBSTRING(REPLACE(z.zone_name, ' ', '') FROM 1 FOR 2)), '-', LPAD(gs::TEXT, 3, '0'))
-FROM zone z
-CROSS JOIN LATERAL generate_series(1, z.total_seat) AS gs
+SELECT z.zone_id, CONCAT(UPPER(SUBSTRING(REPLACE(z.zone_name,' ','') FROM 1 FOR 2)),'-',LPAD(gs::TEXT,3,'0'))
+FROM zone z CROSS JOIN LATERAL generate_series(1, z.total_seat) AS gs
 ON CONFLICT (zone_id, seat_no) DO NOTHING;
