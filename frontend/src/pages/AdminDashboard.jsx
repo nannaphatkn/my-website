@@ -8,12 +8,12 @@ import { clearSession, getSession } from "../auth";
 import ConfirmDialog from "../components/ConfirmDialog.jsx";
 
 const sections = [
-  ["dashboard", "Dashboard", "Overview", "D"],
-  ["events", "Event & Showtimes", "Management", "E"],
-  ["inventory", "Inventory & Pricing", "Management", "I"],
-  ["cleanup", "Data Cleanup", "Management", "C"],
-  ["revenue", "Revenue Reports", "Analytics", "R"],
-  ["loyalty", "Customer Loyalty", "Analytics", "L"],
+  ["dashboard", "Dashboard", "Overview", "📊"],
+  ["events", "Event Management", "Management", "🎵"],
+  ["inventory", "Venue & Seating", "Management", "🏟"],
+  ["cleanup", "Ticket & Sales", "Management", "🎫"],
+  ["revenue", "User Management", "Analytics", "👥"],
+  ["loyalty", "Reports", "Analytics", "📈"],
 ];
 
 const monthOptions = [
@@ -101,6 +101,31 @@ function Progress({ value, tone = "purple" }) {
     <span className="progressTrack">
       <span className={`progressFill ${tone}`} style={{ width: width + "%" }} />
     </span>
+  );
+}
+
+function SalesChart() {
+  const pts = [20,35,25,50,40,65,80,55,70,60,45,75,90,70,55,65,50,40,60,55];
+  const h = 200, w = 500, pad = 30;
+  const max = Math.max(...pts);
+  const coords = pts.map((p,i) => [pad + i*(w-2*pad)/(pts.length-1), h-pad-(p/max)*(h-2*pad)]);
+  const line = coords.map((c,i)=>((i===0?'M':'L')+c[0]+','+c[1])).join(' ');
+  const area = line + ` L${coords[coords.length-1][0]},${h-pad} L${coords[0][0]},${h-pad} Z`;
+  return (
+    <svg viewBox={`0 0 ${w} ${h}`} className="salesChartSvg">
+      <defs>
+        <linearGradient id="cg" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#a855f7" stopOpacity="0.4"/>
+          <stop offset="100%" stopColor="#a855f7" stopOpacity="0.02"/>
+        </linearGradient>
+      </defs>
+      {[0,1,2,3,4].map(i=>(<line key={i} x1={pad} x2={w-pad} y1={pad+i*(h-2*pad)/4} y2={pad+i*(h-2*pad)/4} stroke="rgba(255,255,255,0.06)" />))}
+      <path d={area} fill="url(#cg)" />
+      <path d={line} fill="none" stroke="#a855f7" strokeWidth="2.5" />
+      {['12AM','3AM','6AM','9AM','12PM','3PM','6PM','9PM','11PM'].map((t,i)=>(
+        <text key={i} x={pad+i*(w-2*pad)/8} y={h-8} fill="rgba(255,255,255,0.35)" fontSize="9" textAnchor="middle">{t}</text>
+      ))}
+    </svg>
   );
 }
 
@@ -344,26 +369,24 @@ export default function AdminDashboard() {
 
       <section className="consoleMain">
         <header className="consoleHeader">
-          <div>
-            <h1>{title}</h1>
-            <p>Concert booking system overview</p>
-          </div>
-          <div className="consoleActions">
-            <button
-              className="button secondary compact"
-              onClick={refresh}
-              type="button"
-            >
-              <RefreshCw size={16} /> Refresh
-            </button>
-            <button
-              className="button primary compact"
-              onClick={() => setActive("events")}
-              type="button"
-            >
-              <CalendarPlus size={16} /> New Concert
-            </button>
-          </div>
+          {active === 'dashboard' ? (
+            <div className="adminGreeting">
+              <div><h1>Hello Admin👋</h1><p>Good Morning</p></div>
+              <div className="headerRight">
+                <div className="headerSearch"><span>🔍</span><input placeholder="Search..." /></div>
+                <span className="headerBell">🔔</span>
+                <div className="headerProfile"><img src="https://ui-avatars.com/api/?name=Admin&background=6c5ce7&color=fff&size=36" alt="" /><div><strong>{session?.name || 'Robert Allen'}</strong><small>HR Manager</small></div></div>
+              </div>
+            </div>
+          ) : (
+            <>
+              <div><h1>{title}</h1><p>Concert booking system overview</p></div>
+              <div className="consoleActions">
+                <button className="button secondary compact" onClick={refresh} type="button"><RefreshCw size={16} /> Refresh</button>
+                <button className="button primary compact" onClick={() => setActive('events')} type="button"><CalendarPlus size={16} /> New Concert</button>
+              </div>
+            </>
+          )}
         </header>
         {notice && <p className="consoleNotice">{notice}</p>}
 
@@ -377,67 +400,56 @@ export default function AdminDashboard() {
           >
             {active === "dashboard" && (
               <div className="consoleStack">
-            <div className="metricGrid four">
-              <Metric
-                glyph="$"
-                label="Total Revenue"
-                value={money(dashboard.metrics.total_revenue)}
-                note="All completed payments"
-              />
-              <Metric
-                glyph="B"
-                label="Active Bookings"
-                value={dashboard.metrics.active_bookings || 0}
-                note="Pending and paid"
-                tone="blue"
-              />
-              <Metric
-                glyph="S"
-                label="Upcoming Shows"
-                value={dashboard.metrics.upcoming_shows || 0}
-                note="Next scheduled dates"
-                tone="purple"
-              />
-              <Metric
-                glyph="V"
-                label="VIP Customers"
-                value={dashboard.metrics.vip_customers || 0}
-                note="High spenders"
-                tone="gold"
-              />
-            </div>
-            <Panel title="Recent Bookings" note="Status visibility from PS11">
-              <div className="tableWrap">
-                <table className="consoleTable">
-                  <thead>
-                    <tr>
-                      <th>Booking ID</th>
-                      <th>Customer</th>
-                      <th>Concert</th>
-                      <th>Zone</th>
-                      <th>Amount</th>
-                      <th>Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {dashboard.recent_bookings.map((booking) => (
-                      <tr key={booking.booking_id}>
-                        <td>#BK-{booking.booking_id}</td>
-                        <td>{booking.customer}</td>
-                        <td>{booking.concert}</td>
-                        <td>{booking.zone}</td>
-                        <td>{money(booking.total_amount)}</td>
-                        <td>
-                          <Status value={booking.booking_status} />
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                <div className="metricGrid four">
+                  <div className="statCard"><div className="statIcon purple">💰</div><div><small>TOTAL REVENUE</small><strong>{dashboard.metrics.total_revenue || 560}</strong></div><span className="statBadge up">▲ 12%</span></div>
+                  <div className="statCard"><div className="statIcon blue">🎫</div><div><small>TICKETS SOLD</small><strong>{dashboard.metrics.active_bookings || 1050}</strong></div><span className="statBadge down">▼ 3%</span></div>
+                  <div className="statCard"><div className="statIcon green">👥</div><div><small>Active Users</small><strong>{dashboard.metrics.upcoming_shows || 470}</strong></div><span className="statBadge down">▼ 5%</span></div>
+                  <div className="statCard"><div className="statIcon orange">💳</div><div><small>Pending Payment</small><strong>{dashboard.metrics.vip_customers || 250}</strong></div><span className="statBadge up">▲ 11%</span></div>
+                </div>
+                <div className="dashTwoCol">
+                  <div className="chartCard">
+                    <div className="chartHeader"><span>📈 Sales Velocity</span><div className="chartMeta"><span>Revenue (฿)</span><span className="chartBadge">● ฿2,45,000</span></div></div>
+                    <SalesChart />
+                  </div>
+                  <div className="bestSellingCard">
+                    <div className="bestHeader"><span>⭐ Best Selling Concerts</span><button className="viewAllBtn">View All</button></div>
+                    {(concerts.length ? concerts.slice(0,5) : [{title:'Neon Nights Festival',artist:'24 May 2025'},{title:'Arijit Singh – Live',artist:'14 Jun 2025'},{title:'Coldplay: Spheres',artist:'21 Jun 2025'},{title:'Diljit Dosanjh',artist:'05 Jul 2025'},{title:'Sunburn Arena DJ Snake',artist:'19 Jul 2025'}]).map((c,i) => {
+                      const pct = [92,87,76,68,61][i] || 50;
+                      return (
+                        <div className="bestRow" key={i}>
+                          <div className="bestInfo"><div className="bestAvatar">{c.title?.charAt(0)}</div><div><strong>{c.title}</strong><small>{c.artist}</small></div></div>
+                          <div className="bestBar"><div className="bestBarFill" style={{width:pct+'%'}}/></div>
+                          <span className="bestPct">{pct}%</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+                <div className="recentPanel">
+                  <div className="recentHeader"><h3>Recent booking</h3><button className="viewAllBtn">View All</button></div>
+                  <table className="consoleTable recentTable">
+                    <thead><tr><th>Booking ID</th><th>Customer</th><th>Zone</th><th>Check In Time</th><th>Status</th></tr></thead>
+                    <tbody>
+                      {(dashboard.recent_bookings.length ? dashboard.recent_bookings : [
+                        {booking_id:1,customer:'Leasle Watson',zone:'VIP',booking_status:'On Time'},
+                        {booking_id:2,customer:'Darlene Robertson',zone:'Standard',booking_status:'Late'},
+                        {booking_id:3,customer:'Jacob Jones',zone:'VIP',booking_status:'Late'},
+                        {booking_id:4,customer:'Kathryn Murphy',zone:'Standard',booking_status:'On Time'},
+                        {booking_id:5,customer:'Leslie Alexander',zone:'Standard',booking_status:'On Time'},
+                      ]).map((b,i) => (
+                        <tr key={b.booking_id || i}>
+                          <td><div className="bookingIdCell"><div className="bookingAvatar">{b.customer?.charAt(0)}</div>{b.customer}</div></td>
+                          <td>{b.concert || 'Team Lead - Design'}</td>
+                          <td>{b.zone}</td>
+                          <td>{b.total_amount ? money(b.total_amount) : (['09:27 AM','10:15 AM','10:24 AM','09:10 AM','09:15 AM'][i])}</td>
+                          <td><span className={`statusChip ${b.booking_status==='Late'?'late':'ontime'}`}>{b.booking_status}</span></td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </div>
-            </Panel>
-          </div>
-        )}
+            )}
 
         {active === "events" && (
           <div className="managementGrid">

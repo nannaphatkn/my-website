@@ -2929,3 +2929,58 @@ label {
     font-size: 0.7rem;
   }
 }
+
+/* ══════ HRMS Dark Dashboard ══════ */
+.adminGreeting{display:flex;align-items:center;justify-content:space-between;width:100%;gap:16px}
+.adminGreeting h1{font-size:1.6rem;margin:0;color:#fff}
+.adminGreeting p{margin:2px 0 0;color:rgba(255,255,255,.45);font-weight:600}
+.headerRight{display:flex;align-items:center;gap:14px}
+.headerSearch{display:flex;align-items:center;gap:6px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.08);border-radius:10px;padding:6px 14px}
+.headerSearch input{background:none;border:none;color:#fff;outline:none;width:140px;font-size:.85rem}
+.headerSearch span{font-size:.9rem;opacity:.5}
+.headerBell{font-size:1.1rem;cursor:pointer;opacity:.6}
+.headerProfile{display:flex;align-items:center;gap:8px}
+.headerProfile img{width:36px;height:36px;border-radius:50%;object-fit:cover}
+.headerProfile strong{display:block;color:#fff;font-size:.82rem}
+.headerProfile small{color:rgba(255,255,255,.4);font-size:.72rem}
+.statCard{display:flex;align-items:center;gap:14px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07);border-radius:14px;padding:18px 20px;position:relative}
+.statCard div:nth-child(2){flex:1}
+.statCard small{color:rgba(255,255,255,.45);font-size:.72rem;text-transform:uppercase;font-weight:700;letter-spacing:.5px}
+.statCard strong{display:block;font-size:1.6rem;color:#fff;margin-top:4px}
+.statIcon{width:42px;height:42px;border-radius:10px;display:grid;place-items:center;font-size:1.2rem;flex-shrink:0}
+.statIcon.purple{background:rgba(168,85,247,.15)}
+.statIcon.blue{background:rgba(59,130,246,.15)}
+.statIcon.green{background:rgba(34,197,94,.15)}
+.statIcon.orange{background:rgba(249,115,22,.15)}
+.statBadge{font-size:.7rem;font-weight:700;padding:3px 8px;border-radius:20px;position:absolute;top:14px;right:14px}
+.statBadge.up{color:#22c55e;background:rgba(34,197,94,.12)}
+.statBadge.down{color:#ef4444;background:rgba(239,68,68,.12)}
+.dashTwoCol{display:grid;grid-template-columns:1.5fr 1fr;gap:16px}
+.chartCard,.bestSellingCard,.recentPanel{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07);border-radius:14px;padding:20px}
+.chartHeader{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;color:#fff;font-weight:700;font-size:.9rem}
+.chartMeta{display:flex;gap:14px;font-size:.75rem;color:rgba(255,255,255,.4)}
+.chartBadge{color:#a855f7}
+.salesChartSvg{width:100%;height:auto;display:block}
+.bestHeader{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;color:#fff;font-weight:700;font-size:.9rem}
+.viewAllBtn{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);color:rgba(255,255,255,.6);padding:4px 14px;border-radius:8px;font-size:.75rem;cursor:pointer;font-weight:600}
+.viewAllBtn:hover{background:rgba(255,255,255,.1)}
+.bestRow{display:flex;align-items:center;gap:10px;margin-bottom:14px}
+.bestInfo{display:flex;align-items:center;gap:8px;min-width:180px}
+.bestAvatar{width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,#a855f7,#6366f1);display:grid;place-items:center;color:#fff;font-size:.7rem;font-weight:800;flex-shrink:0}
+.bestInfo strong{display:block;color:#fff;font-size:.8rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:140px}
+.bestInfo small{color:rgba(255,255,255,.35);font-size:.7rem}
+.bestBar{flex:1;height:8px;background:rgba(255,255,255,.06);border-radius:10px;overflow:hidden}
+.bestBarFill{height:100%;background:linear-gradient(90deg,#a855f7,#c084fc);border-radius:10px;transition:width .5s}
+.bestPct{color:rgba(255,255,255,.7);font-size:.8rem;font-weight:700;min-width:36px;text-align:right}
+.recentPanel{margin-top:0}
+.recentHeader{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}
+.recentHeader h3{margin:0;color:#fff;font-size:1rem}
+.recentTable thead th{color:rgba(255,255,255,.4)!important;font-size:.72rem;text-transform:uppercase;letter-spacing:.5px;border-bottom:1px solid rgba(255,255,255,.06)!important}
+.recentTable td{border-bottom:1px solid rgba(255,255,255,.04)!important;padding:12px 10px!important}
+.bookingIdCell{display:flex;align-items:center;gap:10px}
+.bookingAvatar{width:30px;height:30px;border-radius:50%;background:linear-gradient(135deg,#6366f1,#a855f7);display:grid;place-items:center;color:#fff;font-size:.7rem;font-weight:800;flex-shrink:0}
+.statusChip{padding:4px 12px;border-radius:6px;font-size:.72rem;font-weight:700}
+.statusChip.ontime{color:#22c55e;background:rgba(34,197,94,.12)}
+.statusChip.late{color:#ef4444;background:rgba(239,68,68,.12)}
+.navGlyph{font-size:1rem!important;background:none!important;width:auto!important;height:auto!important}
+@media(max-width:900px){.dashTwoCol{grid-template-columns:1fr}.adminGreeting{flex-direction:column;align-items:flex-start}.headerRight{flex-wrap:wrap}}
