@@ -20,11 +20,80 @@ const ZONE_COLORS = {
 const STAGE_MAP_ZONES = new Set(["VIP PACKAGE", "STANDING", "ZONE A", "ZONE B", "ZONE C"]);
 
 const CATEGORIES = ["Entertainment", "Business", "Sports", "Lifestyle", "Vouchers"];
+const PAYMENT_METHODS = [
+  { id: "card", label: "Credit / Debit Card", icon: "▭", note: "Visa, Mastercard, JCB" },
+  { id: "promptpay", label: "PromptPay", icon: "QR", note: "QR code transfer" },
+  { id: "bank_transfer", label: "Bank Transfer", icon: "฿", note: "Thai bank transfer" },
+  { id: "wallet", label: "Mobile Wallet", icon: "W", note: "TrueMoney or wallet app" },
+];
+
+const PAYMENT_DEMOS = {
+  promptpay: {
+    title: "PromptPay Demo",
+    subtitle: "Scan this demo QR with your banking app.",
+    rows: [
+      ["Biller", "NodNod Ticketing"],
+      ["PromptPay ID", "099-999-2410"],
+      ["Reference", "NN-PROMPT-DEMO"],
+    ],
+  },
+  bank_transfer: {
+    title: "Bank Transfer Demo",
+    subtitle: "Transfer to this demo account, then press Pay.",
+    rows: [
+      ["Bank", "Kasikorn Bank"],
+      ["Account Name", "NodNod Ticketing Co., Ltd."],
+      ["Account No.", "123-4-56789-0"],
+    ],
+  },
+  wallet: {
+    title: "Mobile Wallet Demo",
+    subtitle: "Use this demo wallet receiver in your wallet app.",
+    rows: [
+      ["Wallet", "TrueMoney Wallet"],
+      ["Receiver", "NodNod Tickets"],
+      ["Phone", "099-888-2410"],
+    ],
+  },
+};
 
 function money(v) { return new Intl.NumberFormat("th-TH", { maximumFractionDigits: 0 }).format(v || 0); }
 function dateFmt(d) { if (!d) return ""; return new Date(d + "T00:00:00").toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" }); }
 function dateShort(d) { if (!d) return ""; return new Date(d + "T00:00:00").toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }).toUpperCase(); }
 function dayOfWeek(d) { if (!d) return ""; return new Date(d + "T00:00:00").toLocaleDateString("en-GB", { weekday: "short" }).toUpperCase(); }
+
+function DemoPayment({ amount, method }) {
+  const demo = PAYMENT_DEMOS[method];
+  if (!demo) return null;
+  return (
+    <div className={`tmAltPaymentBox ${method}`}>
+      {method === "promptpay" && (
+        <div className="tmDemoQr" aria-label="Demo PromptPay QR">
+          <span />
+          <span />
+          <span />
+          <strong>QR</strong>
+        </div>
+      )}
+      <div className="tmDemoPaymentInfo">
+        <strong>{demo.title}</strong>
+        <p>{demo.subtitle}</p>
+        <div className="tmDemoRows">
+          {demo.rows.map(([label, value]) => (
+            <div key={label}>
+              <span>{label}</span>
+              <b>{value}</b>
+            </div>
+          ))}
+          <div>
+            <span>Amount</span>
+            <b>฿{money(amount)}</b>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 /* ─── Group showtimes by concert_id for browse view ────────── */
 function groupConcerts(list) {
@@ -57,7 +126,7 @@ export default function CustomerBookingPage() {
   const [step, setStep] = useState("browse"); // browse | info | seats | checkout | done
   const [activeCat, setActiveCat] = useState("Entertainment");
   const [searchQ, setSearchQ] = useState("");
-  const [payment, setPayment] = useState({ cardName: session?.name || "", cardNumber: "", expiry: "", cvc: "" });
+  const [payment, setPayment] = useState({ method: "card", cardName: session?.name || "", cardNumber: "", expiry: "", cvc: "" });
 
   const grouped = useMemo(() => groupConcerts(concerts), [concerts]);
   const recommended = useMemo(() => grouped.slice(0, 5), [grouped]);
@@ -89,7 +158,7 @@ export default function CustomerBookingPage() {
   function openEvent(concert) { setSelectedShowtime(concert.showtimes[0].showtime_id); setStep("info"); }
   function toggleSeat(s) { if (s.seat_status !== "available" || booking) return; setSelectedSeats((c) => c.includes(s.seat_id) ? c.filter((i) => i !== s.seat_id) : [...c, s.seat_id]); }
   async function holdSeats() { setNotice(""); try { const h = await api.holdSeats({ showtime_id: Number(selectedShowtime), seat_ids: selectedSeats }); setBooking(h); await loadSeats(selectedShowtime); setStep("checkout"); } catch (e) { setNotice(e.message); await loadSeats(selectedShowtime); } }
-  async function confirmPay() { setNotice(""); try { const c = await api.confirmPayment({ booking_id: booking.booking_id, payment_method: "card" }); setPaymentRef(c.transaction_ref); await loadSeats(selectedShowtime); await loadConcerts(); setStep("done"); } catch (e) { setNotice(e.message); } }
+  async function confirmPay() { setNotice(""); try { const c = await api.confirmPayment({ booking_id: booking.booking_id, payment_method: payment.method }); setPaymentRef(c.transaction_ref); await loadSeats(selectedShowtime); await loadConcerts(); setStep("done"); } catch (e) { setNotice(e.message); } }
   function resetFlow() { setStep("browse"); setSelectedSeats([]); setSelectedZone(null); setBooking(null); setPaymentRef(""); setSelectedShowtime(null); }
 
   return (
@@ -328,12 +397,35 @@ export default function CustomerBookingPage() {
                     <p className="tmHoldNote">Held until {new Date(booking.hold_expires_at).toLocaleTimeString()}</p>
                   </div>
                   <div className="tmPaymentForm">
-                    <label><span>Name on card</span><input value={payment.cardName} onChange={(e) => setPayment({ ...payment, cardName: e.target.value })} /></label>
-                    <label><span>Card number</span><input value={payment.cardNumber} placeholder="4242 4242 4242 4242" onChange={(e) => setPayment({ ...payment, cardNumber: e.target.value })} /></label>
-                    <div className="tmPayRow">
-                      <label><span>Expiry</span><input value={payment.expiry} placeholder="MM/YY" onChange={(e) => setPayment({ ...payment, expiry: e.target.value })} /></label>
-                      <label><span>CVC</span><input value={payment.cvc} placeholder="123" onChange={(e) => setPayment({ ...payment, cvc: e.target.value })} /></label>
-                    </div>
+                    <label>
+                      <span>Payment method</span>
+                      <div className="tmPaymentMethods">
+                        {PAYMENT_METHODS.map((method) => (
+                          <button
+                            className={`tmPaymentMethod ${payment.method === method.id ? "active" : ""}`}
+                            key={method.id}
+                            onClick={() => setPayment({ ...payment, method: method.id })}
+                            type="button"
+                          >
+                            <strong>{method.icon}</strong>
+                            <span>{method.label}</span>
+                            <small>{method.note}</small>
+                          </button>
+                        ))}
+                      </div>
+                    </label>
+                    {payment.method === "card" ? (
+                      <>
+                        <label><span>Name on card</span><input value={payment.cardName} onChange={(e) => setPayment({ ...payment, cardName: e.target.value })} /></label>
+                        <label><span>Card number</span><input value={payment.cardNumber} placeholder="4242 4242 4242 4242" onChange={(e) => setPayment({ ...payment, cardNumber: e.target.value })} /></label>
+                        <div className="tmPayRow">
+                          <label><span>Expiry</span><input value={payment.expiry} placeholder="MM/YY" onChange={(e) => setPayment({ ...payment, expiry: e.target.value })} /></label>
+                          <label><span>CVC</span><input value={payment.cvc} placeholder="123" onChange={(e) => setPayment({ ...payment, cvc: e.target.value })} /></label>
+                        </div>
+                      </>
+                    ) : (
+                      <DemoPayment method={payment.method} amount={booking.total_amount || selectedTotal} />
+                    )}
                     <button className="button primary tmPayBtn" onClick={confirmPay} type="button"><CreditCard size={18} /> Pay ฿{money(booking.total_amount || selectedTotal)}</button>
                   </div>
                 </div>

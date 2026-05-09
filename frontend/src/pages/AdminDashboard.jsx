@@ -14,6 +14,7 @@ const sections = [
   ["cleanup", "Ticket & Sales", "Management", "🎫"],
   ["revenue", "User Management", "Analytics", "👥"],
   ["loyalty", "Reports", "Analytics", "📈"],
+  ["analytics", "Analytics", "Analytics", "📊"],
 ];
 
 const monthOptions = [
@@ -30,6 +31,23 @@ const monthOptions = [
   ["10", "October"],
   ["11", "November"],
   ["12", "December"],
+];
+
+const analyticsReportOptions = [
+  ["1", "Report 1: Monthly Revenue per Concert"],
+  ["2", "Report 2: Seat Occupancy by Zone"],
+  ["3", "Report 3: Average Ticket Price by Genre per Quarter"],
+  ["4", "Report 4: Top 5 Concerts by Booking Rate"],
+  ["5", "Report 5: Booking Status Summary"],
+  ["6", "Report 6: Most Popular Payment Methods"],
+  ["7", "Report 7: Monthly New Users"],
+  ["8", "Report 8: Top 10 Customers by Spending"],
+  ["9", "Report 9: Available Seats by Showtime"],
+  ["10", "Report 10: Refund Amount by Quarter"],
+  ["11", "Report 11: Busiest Booking Hours"],
+  ["12", "Report 12: Admin Concert Assignments"],
+  ["13", "Report 13: Venue Ticket Price Range"],
+  ["14", "Report 14: Average Tickets per Booking"],
 ];
 
 function emptyForm() {
@@ -137,6 +155,75 @@ function Required({ children }) {
   );
 }
 
+function pct(value) {
+  return `${Number(value || 0).toFixed(1)}%`;
+}
+
+function reportValue(row, keys, fallback = "-") {
+  for (const key of keys) {
+    if (row?.[key] !== undefined && row?.[key] !== null && row?.[key] !== "") return row[key];
+  }
+  return fallback;
+}
+
+function MiniBars({ rows = [], valueKey, labelKey, format = (value) => value }) {
+  const max = Math.max(...rows.map((row) => Number(row[valueKey] || 0)), 1);
+  return (
+    <div className="miniBars">
+      {rows.slice(0, 6).map((row, index) => {
+        const value = Number(row[valueKey] || 0);
+        return (
+          <div className="miniBarRow" key={index}>
+            <span>{reportValue(row, [labelKey])}</span>
+            <div><i style={{ width: `${Math.max(4, (value / max) * 100)}%` }} /></div>
+            <strong>{format(value)}</strong>
+          </div>
+        );
+      })}
+      {!rows.length && <p className="muted">No data yet.</p>}
+    </div>
+  );
+}
+
+function AnalyticsTable({ rows = [], columns }) {
+  return (
+    <div className="tableWrap analyticsTableWrap">
+      <table className="consoleTable analyticsTable">
+        <thead>
+          <tr>
+            {columns.map((column) => <th key={column.label}>{column.label}</th>)}
+          </tr>
+        </thead>
+        <tbody>
+          {rows.slice(0, 8).map((row, index) => (
+            <tr key={index}>
+              {columns.map((column) => (
+                <td key={column.label}>{column.render ? column.render(row) : reportValue(row, column.keys)}</td>
+              ))}
+            </tr>
+          ))}
+          <tr hidden={rows.length}>
+            <td colSpan={columns.length}>No data yet.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function AnalyticsReport({ number, title, question, children }) {
+  return (
+    <div className={`analyticsReport report-${number}`}>
+      <Panel
+        title={`Report ${number}: ${title}`}
+        note={question}
+      >
+        {children}
+      </Panel>
+    </div>
+  );
+}
+
 export default function AdminDashboard() {
   const navigate = useNavigate();
   const session = getSession();
@@ -168,6 +255,8 @@ export default function AdminDashboard() {
     total_revenue: 0,
     total_tickets: 0,
   });
+  const [analytics, setAnalytics] = useState({});
+  const [selectedAnalyticsReport, setSelectedAnalyticsReport] = useState("1");
   const [form, setForm] = useState(emptyForm());
 
   const title = sections.find(([id]) => id === active)?.[1] || "Dashboard";
@@ -201,6 +290,7 @@ export default function AdminDashboard() {
       inventoryData,
       cleanupData,
       loyaltyData,
+      analyticsData,
     ] = await Promise.all([
       api.adminConcerts(),
       api.revenue(nextFilters),
@@ -208,6 +298,7 @@ export default function AdminDashboard() {
       api.adminInventory(showtime),
       api.cleanup(),
       api.loyalty(),
+      api.analytics(),
     ]);
     setConcerts(concertData);
     setRevenue(revenueData);
@@ -215,6 +306,7 @@ export default function AdminDashboard() {
     setInventory(inventoryData);
     setCleanup(cleanupData);
     setLoyalty(loyaltyData);
+    setAnalytics(analyticsData);
     if (isInitial && !showtime && inventoryData.showtimes.length)
       setSelectedShowtime(String(inventoryData.showtimes[0].showtime_id));
   }
@@ -1029,6 +1121,333 @@ export default function AdminDashboard() {
                 </table>
               </div>
             </Panel>
+          </div>
+        )}
+
+        {active === "analytics" && (
+          <div className="consoleStack analyticsPage">
+            <Panel
+              title="Analytics Report"
+              note="Choose one PS07 report to view"
+              action={
+                <label className="analyticsSelect">
+                  <span>Report</span>
+                  <select
+                    value={selectedAnalyticsReport}
+                    onChange={(event) => setSelectedAnalyticsReport(event.target.value)}
+                  >
+                    {analyticsReportOptions.map(([value, label]) => (
+                      <option key={value} value={value}>
+                        {label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              }
+            >
+              <p className="muted">
+                Select a report from the dropdown. The dashboard shows one analytics report at a time.
+              </p>
+            </Panel>
+
+            <div className={`analyticsGrid report-${selectedAnalyticsReport}`}>
+              <AnalyticsReport
+                number="1"
+                title="Monthly Revenue per Concert"
+                question="Which months and concerts generate the most booking revenue?"
+              >
+                <MiniBars
+                  rows={analytics.monthly_revenue_per_concert || []}
+                  labelKey="concert"
+                  valueKey="total_revenue"
+                  format={money}
+                />
+                <AnalyticsTable
+                  rows={analytics.monthly_revenue_per_concert || []}
+                  columns={[
+                    { label: "Concert", keys: ["concert"] },
+                    { label: "Period", keys: ["period"] },
+                    { label: "Bookings", keys: ["paid_bookings"] },
+                    { label: "Tickets", keys: ["tickets_sold"] },
+                    { label: "Revenue", render: (row) => money(row.total_revenue) },
+                  ]}
+                />
+              </AnalyticsReport>
+
+              <AnalyticsReport
+                number="2"
+                title="Seat Occupancy by Zone"
+                question="Which seating zones have the highest demand?"
+              >
+                <MiniBars
+                  rows={analytics.seat_occupancy_by_zone || []}
+                  labelKey="zone_name"
+                  valueKey="occupancy_rate"
+                  format={pct}
+                />
+                <AnalyticsTable
+                  rows={analytics.seat_occupancy_by_zone || []}
+                  columns={[
+                    { label: "Venue", keys: ["venue"] },
+                    { label: "Zone", keys: ["zone_name"] },
+                    { label: "Reserved", keys: ["seats_reserved"] },
+                    { label: "Total", keys: ["total_seat"] },
+                    { label: "Occupancy", render: (row) => pct(row.occupancy_rate) },
+                  ]}
+                />
+              </AnalyticsReport>
+
+              <AnalyticsReport
+                number="3"
+                title="Average Ticket Price by Genre per Quarter"
+                question="Which genres produce higher average ticket prices?"
+              >
+                <AnalyticsTable
+                  rows={analytics.avg_ticket_price_by_genre_quarter || []}
+                  columns={[
+                    { label: "Genre", keys: ["genre"] },
+                    { label: "Year", keys: ["year"] },
+                    { label: "Quarter", render: (row) => `Q${row.quarter}` },
+                    { label: "Avg Price", render: (row) => money(row.avg_ticket_price) },
+                    { label: "Tickets", keys: ["ticket_count"] },
+                  ]}
+                />
+              </AnalyticsReport>
+
+              <AnalyticsReport
+                number="4"
+                title="Top 5 Concerts by Booking Rate"
+                question="Which concerts sell through the fastest?"
+              >
+                <MiniBars
+                  rows={analytics.top_concerts_by_booking_rate || []}
+                  labelKey="concert"
+                  valueKey="booking_rate"
+                  format={pct}
+                />
+                <AnalyticsTable
+                  rows={analytics.top_concerts_by_booking_rate || []}
+                  columns={[
+                    { label: "Concert", keys: ["concert"] },
+                    { label: "Sold", keys: ["tickets_sold"] },
+                    { label: "Seats", keys: ["total_seats"] },
+                    { label: "Rate", render: (row) => pct(row.booking_rate) },
+                  ]}
+                />
+              </AnalyticsReport>
+
+              <AnalyticsReport
+                number="5"
+                title="Booking Status Summary"
+                question="What is the confirmed, cancelled, pending, and expired mix?"
+              >
+                <AnalyticsTable
+                  rows={analytics.booking_status_summary || []}
+                  columns={[
+                    { label: "Status", render: (row) => <Status value={row.booking_status} /> },
+                    { label: "Bookings", keys: ["total_bookings"] },
+                    { label: "Share", render: (row) => pct(row.percentage) },
+                  ]}
+                />
+              </AnalyticsReport>
+
+              <AnalyticsReport
+                number="6"
+                title="Most Popular Payment Methods"
+                question="Which payment method is used most often?"
+              >
+                <MiniBars
+                  rows={analytics.popular_payment_methods || []}
+                  labelKey="payment_method"
+                  valueKey="usage_count"
+                />
+                <AnalyticsTable
+                  rows={analytics.popular_payment_methods || []}
+                  columns={[
+                    { label: "Method", keys: ["payment_method"] },
+                    { label: "Uses", keys: ["usage_count"] },
+                    { label: "Amount", render: (row) => money(row.total_amount) },
+                  ]}
+                />
+              </AnalyticsReport>
+
+              <AnalyticsReport
+                number="7"
+                title="Monthly New Users"
+                question="How many new users register each month?"
+              >
+                <MiniBars
+                  rows={analytics.monthly_new_users || []}
+                  labelKey="period"
+                  valueKey="new_users"
+                />
+                <AnalyticsTable
+                  rows={analytics.monthly_new_users || []}
+                  columns={[
+                    { label: "Period", keys: ["period"] },
+                    { label: "New Users", keys: ["new_users"] },
+                  ]}
+                />
+              </AnalyticsReport>
+
+              <AnalyticsReport
+                number="8"
+                title="Top 10 Customers by Spending"
+                question="Who are the highest-value customers?"
+              >
+                <AnalyticsTable
+                  rows={analytics.top_customers_by_spending || []}
+                  columns={[
+                    { label: "Customer", keys: ["customer"] },
+                    { label: "Bookings", keys: ["paid_bookings"] },
+                    { label: "Tickets", keys: ["tickets_purchased"] },
+                    { label: "Spend", render: (row) => money(row.total_spending) },
+                  ]}
+                />
+              </AnalyticsReport>
+
+              <AnalyticsReport
+                number="9"
+                title="Available Seats by Showtime"
+                question="Which showtimes may need additional advertising?"
+              >
+                <MiniBars
+                  rows={analytics.available_seats_by_showtime || []}
+                  labelKey="concert"
+                  valueKey="available_rate"
+                  format={pct}
+                />
+                <AnalyticsTable
+                  rows={analytics.available_seats_by_showtime || []}
+                  columns={[
+                    { label: "Concert", keys: ["concert"] },
+                    { label: "Venue", keys: ["venue"] },
+                    { label: "Available", keys: ["available_seats"] },
+                    { label: "Total", keys: ["total_seats"] },
+                    { label: "Open Rate", render: (row) => pct(row.available_rate) },
+                  ]}
+                />
+              </AnalyticsReport>
+
+              <AnalyticsReport
+                number="10"
+                title="Refund Amount by Quarter"
+                question="Estimated refunds from cancelled or expired bookings."
+              >
+                <AnalyticsTable
+                  rows={analytics.refund_amount_by_quarter || []}
+                  columns={[
+                    { label: "Year", keys: ["year"] },
+                    { label: "Quarter", render: (row) => `Q${row.quarter}` },
+                    { label: "Cancelled", keys: ["cancelled_bookings"] },
+                    { label: "Estimated Refund", render: (row) => money(row.estimated_refund_amount) },
+                  ]}
+                />
+              </AnalyticsReport>
+
+              <AnalyticsReport
+                number="11"
+                title="Busiest Booking Hours"
+                question="When do customers book the most tickets?"
+              >
+                <MiniBars
+                  rows={analytics.busiest_booking_hours || []}
+                  labelKey="hour_of_day"
+                  valueKey="transaction_count"
+                  format={(value) => `${value} tx`}
+                />
+                <AnalyticsTable
+                  rows={analytics.busiest_booking_hours || []}
+                  columns={[
+                    { label: "Hour", render: (row) => `${String(row.hour_of_day).padStart(2, "0")}:00` },
+                    { label: "Transactions", keys: ["transaction_count"] },
+                  ]}
+                />
+              </AnalyticsReport>
+
+              <AnalyticsReport
+                number="12"
+                title="Admin Concert Assignments"
+                question="Which admin manages each concert and who has the largest workload?"
+              >
+                <div className="analyticsSplit">
+                  <AnalyticsTable
+                    rows={analytics.admin_concert_assignments?.by_concert || []}
+                    columns={[
+                      { label: "Concert", keys: ["concert"] },
+                      { label: "Admin", keys: ["admin_name"] },
+                      { label: "Email", keys: ["admin_email"] },
+                    ]}
+                  />
+                  <AnalyticsTable
+                    rows={analytics.admin_concert_assignments?.workload || []}
+                    columns={[
+                      { label: "Admin", keys: ["admin_name"] },
+                      { label: "Concerts", keys: ["concerts_managed"] },
+                    ]}
+                  />
+                </div>
+              </AnalyticsReport>
+
+              <AnalyticsReport
+                number="13"
+                title="Venue Ticket Price Range"
+                question="Which venues have the widest ticket pricing range?"
+              >
+                <MiniBars
+                  rows={analytics.venue_ticket_price_range || []}
+                  labelKey="venue"
+                  valueKey="price_range"
+                  format={money}
+                />
+                <AnalyticsTable
+                  rows={analytics.venue_ticket_price_range || []}
+                  columns={[
+                    { label: "Venue", keys: ["venue"] },
+                    { label: "Min", render: (row) => money(row.min_price) },
+                    { label: "Max", render: (row) => money(row.max_price) },
+                    { label: "Average", render: (row) => money(row.avg_price) },
+                    { label: "Range", render: (row) => money(row.price_range) },
+                  ]}
+                />
+              </AnalyticsReport>
+
+              <AnalyticsReport
+                number="14"
+                title="Average Tickets Purchased per Booking"
+                question="How many tickets do customers usually buy in one booking?"
+              >
+                <div className="analyticsSummaryStrip">
+                  <Metric
+                    glyph="AVG"
+                    label="Average"
+                    value={analytics.avg_tickets_per_booking?.summary?.overall_avg_tickets_per_booking || 0}
+                    note="Tickets per booking"
+                    tone="blue"
+                  />
+                  <Metric
+                    glyph="MIN"
+                    label="Minimum"
+                    value={analytics.avg_tickets_per_booking?.summary?.min_tickets || 0}
+                    note="Smallest booking"
+                    tone="gold"
+                  />
+                  <Metric
+                    glyph="MAX"
+                    label="Maximum"
+                    value={analytics.avg_tickets_per_booking?.summary?.max_tickets || 0}
+                    note="Largest booking"
+                  />
+                </div>
+                <AnalyticsTable
+                  rows={analytics.avg_tickets_per_booking?.distribution || []}
+                  columns={[
+                    { label: "Tickets in Booking", keys: ["ticket_count"] },
+                    { label: "Booking Count", keys: ["booking_count"] },
+                  ]}
+                />
+              </AnalyticsReport>
+            </div>
           </div>
         )}
           </motion.div>

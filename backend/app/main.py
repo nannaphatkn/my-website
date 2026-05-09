@@ -109,6 +109,10 @@ def _money_fields(row: dict, fields: tuple[str, ...]) -> dict:
     return row
 
 
+def _json_safe_rows(rows: list[dict]) -> list[dict]:
+    return [{key: _decimal_to_float(value) for key, value in row.items()} for row in rows]
+
+
 @app.get("/api/health")
 def health_check():
     return {"status": "ok"}
@@ -856,3 +860,299 @@ def revenue_report(
         "total_tickets": total_tickets,
         "rows": rows,
     }
+
+
+@app.get("/api/admin/analytics")
+def analytics_reports(_: Principal = Depends(require_admin)):
+    release_expired_locks()
+    reports: dict[str, object] = {}
+    with db_session() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT
+                    c.title AS concert,
+                    EXTRACT(YEAR FROM p.paid_at)::INT AS year,
+                    EXTRACT(MONTH FROM p.paid_at)::INT AS month,
+                    TO_CHAR(p.paid_at, 'Mon YYYY') AS period,
+                    COALESCE(SUM(p.amount), 0) AS total_revenue,
+                    COUNT(DISTINCT b.booking_id) AS paid_bookings,
+                    COUNT(t.ticket_id) AS tickets_sold
+                FROM payment p
+                JOIN booking b ON b.booking_id = p.booking_id
+                JOIN showtime s ON s.showtime_id = b.showtime_id
+                JOIN concert c ON c.concert_id = s.concert_id
+                LEFT JOIN ticket t ON t.booking_id = b.booking_id
+                WHERE p.payment_status = 'completed'
+                GROUP BY c.title, year, month, period
+                ORDER BY year DESC, month DESC, total_revenue DESC
+                """
+            )
+            reports["monthly_revenue_per_concert"] = _json_safe_rows(cur.fetchall())
+
+            cur.execute(
+                """
+                SELECT
+                    COALESCE(v.venue_name, '-') AS venue,
+                    s.show_date,
+                    z.zone_name,
+                    z.price,
+                    z.total_seat,
+                    COUNT(st.seat_id) FILTER (WHERE st.seat_status IN ('sold', 'pending')) AS seats_reserved,
+                    ROUND(
+                        COUNT(st.seat_id) FILTER (WHERE st.seat_status IN ('sold', 'pending')) * 100.0
+                        / NULLIF(COUNT(st.seat_id), 0),
+                        2
+                    ) AS occupancy_rate
+                FROM zone z
+                JOIN showtime s ON s.showtime_id = z.showtime_id
+                LEFT JOIN venue v ON v.venue_id = s.venue_id
+                LEFT JOIN seat st ON st.zone_id = z.zone_id
+                GROUP BY v.venue_name, s.show_date, z.zone_id
+                ORDER BY s.show_date ASC, occupancy_rate DESC NULLS LAST
+                """
+            )
+            reports["seat_occupancy_by_zone"] = _json_safe_rows(cur.fetchall())
+
+            cur.execute(
+                """
+                SELECT
+                    COALESCE(c.genre, 'Uncategorized') AS genre,
+                    EXTRACT(YEAR FROM COALESCE(p.paid_at, b.created_at))::INT AS year,
+                    EXTRACT(QUARTER FROM COALESCE(p.paid_at, b.created_at))::INT AS quarter,
+                    ROUND(AVG(t.price_paid), 2) AS avg_ticket_price,
+                    COUNT(t.ticket_id) AS ticket_count
+                FROM ticket t
+                JOIN booking b ON b.booking_id = t.booking_id
+                LEFT JOIN payment p ON p.booking_id = b.booking_id AND p.payment_status = 'completed'
+                JOIN showtime s ON s.showtime_id = t.showtime_id
+                JOIN concert c ON c.concert_id = s.concert_id
+                WHERE t.ticket_status = 'sold'
+                GROUP BY genre, year, quarter
+                ORDER BY year DESC, quarter ASC, avg_ticket_price DESC
+                """
+            )
+            reports["avg_ticket_price_by_genre_quarter"] = _json_safe_rows(cur.fetchall())
+
+            cur.execute(
+                """
+                SELECT
+                    c.concert_id,
+                    c.title AS concert,
+                    COUNT(t.ticket_id) FILTER (WHERE t.ticket_status = 'sold') AS tickets_sold,
+                    COUNT(st.seat_id) AS total_seats,
+                    ROUND(
+                        COUNT(t.ticket_id) FILTER (WHERE t.ticket_status = 'sold') * 100.0
+                        / NULLIF(COUNT(st.seat_id), 0),
+                        2
+                    ) AS booking_rate
+                FROM concert c
+                JOIN showtime s ON s.concert_id = c.concert_id
+                JOIN zone z ON z.showtime_id = s.showtime_id
+                JOIN seat st ON st.zone_id = z.zone_id
+                LEFT JOIN ticket t ON t.seat_id = st.seat_id AND t.ticket_status = 'sold'
+                GROUP BY c.concert_id
+                ORDER BY booking_rate DESC NULLS LAST, tickets_sold DESC
+                LIMIT 5
+                """
+            )
+            reports["top_concerts_by_booking_rate"] = _json_safe_rows(cur.fetchall())
+
+            cur.execute(
+                """
+                SELECT
+                    booking_status,
+                    COUNT(*) AS total_bookings,
+                    ROUND(COUNT(*) * 100.0 / NULLIF((SELECT COUNT(*) FROM booking), 0), 2) AS percentage
+                FROM booking
+                GROUP BY booking_status
+                ORDER BY total_bookings DESC
+                """
+            )
+            reports["booking_status_summary"] = _json_safe_rows(cur.fetchall())
+
+            cur.execute(
+                """
+                SELECT
+                    payment_method,
+                    COUNT(*) AS usage_count,
+                    COALESCE(SUM(amount), 0) AS total_amount
+                FROM payment
+                GROUP BY payment_method
+                ORDER BY usage_count DESC, total_amount DESC
+                """
+            )
+            reports["popular_payment_methods"] = _json_safe_rows(cur.fetchall())
+
+            cur.execute(
+                """
+                SELECT
+                    EXTRACT(YEAR FROM created_at)::INT AS year,
+                    EXTRACT(MONTH FROM created_at)::INT AS month,
+                    TO_CHAR(created_at, 'Mon YYYY') AS period,
+                    COUNT(user_id) AS new_users
+                FROM users
+                GROUP BY year, month, period
+                ORDER BY year DESC, month DESC
+                """
+            )
+            reports["monthly_new_users"] = _json_safe_rows(cur.fetchall())
+
+            cur.execute(
+                """
+                SELECT
+                    u.user_id,
+                    u.full_name AS customer,
+                    COUNT(DISTINCT b.booking_id) FILTER (WHERE b.booking_status = 'paid') AS paid_bookings,
+                    COUNT(t.ticket_id) FILTER (WHERE t.ticket_status = 'sold') AS tickets_purchased,
+                    COALESCE(SUM(p.amount) FILTER (WHERE p.payment_status = 'completed'), 0) AS total_spending
+                FROM users u
+                LEFT JOIN booking b ON b.user_id = u.user_id
+                LEFT JOIN ticket t ON t.booking_id = b.booking_id
+                LEFT JOIN payment p ON p.booking_id = b.booking_id
+                GROUP BY u.user_id
+                ORDER BY total_spending DESC, tickets_purchased DESC
+                LIMIT 10
+                """
+            )
+            reports["top_customers_by_spending"] = _json_safe_rows(cur.fetchall())
+
+            cur.execute(
+                """
+                SELECT
+                    s.showtime_id,
+                    c.title AS concert,
+                    COALESCE(v.venue_name, '-') AS venue,
+                    s.show_date,
+                    s.show_time,
+                    COUNT(st.seat_id) FILTER (WHERE st.seat_status = 'available') AS available_seats,
+                    COUNT(st.seat_id) AS total_seats,
+                    ROUND(
+                        COUNT(st.seat_id) FILTER (WHERE st.seat_status = 'available') * 100.0
+                        / NULLIF(COUNT(st.seat_id), 0),
+                        2
+                    ) AS available_rate
+                FROM showtime s
+                JOIN concert c ON c.concert_id = s.concert_id
+                LEFT JOIN venue v ON v.venue_id = s.venue_id
+                LEFT JOIN zone z ON z.showtime_id = s.showtime_id
+                LEFT JOIN seat st ON st.zone_id = z.zone_id
+                GROUP BY s.showtime_id, c.title, v.venue_name
+                ORDER BY s.show_date ASC, s.show_time ASC
+                """
+            )
+            reports["available_seats_by_showtime"] = _json_safe_rows(cur.fetchall())
+
+            cur.execute(
+                """
+                SELECT
+                    EXTRACT(YEAR FROM b.created_at)::INT AS year,
+                    EXTRACT(QUARTER FROM b.created_at)::INT AS quarter,
+                    COUNT(*) AS cancelled_bookings,
+                    COALESCE(SUM(b.total_amount), 0) AS estimated_refund_amount
+                FROM booking b
+                WHERE b.booking_status IN ('cancelled', 'expired')
+                GROUP BY year, quarter
+                ORDER BY year DESC, quarter ASC
+                """
+            )
+            reports["refund_amount_by_quarter"] = _json_safe_rows(cur.fetchall())
+
+            cur.execute(
+                """
+                SELECT
+                    EXTRACT(HOUR FROM created_at)::INT AS hour_of_day,
+                    COUNT(*) AS transaction_count
+                FROM booking
+                GROUP BY hour_of_day
+                ORDER BY hour_of_day ASC
+                """
+            )
+            reports["busiest_booking_hours"] = _json_safe_rows(cur.fetchall())
+
+            cur.execute(
+                """
+                SELECT
+                    c.concert_id,
+                    c.title AS concert,
+                    COALESCE(a.display_name, 'Unassigned') AS admin_name,
+                    COALESCE(a.email, '-') AS admin_email
+                FROM concert c
+                LEFT JOIN admin_concert ac ON ac.concert_id = c.concert_id
+                LEFT JOIN admin a ON a.admin_id = ac.admin_id
+                ORDER BY c.title, admin_name
+                """
+            )
+            by_concert = _json_safe_rows(cur.fetchall())
+            cur.execute(
+                """
+                SELECT
+                    a.admin_id,
+                    a.display_name AS admin_name,
+                    COUNT(ac.concert_id) AS concerts_managed
+                FROM admin a
+                LEFT JOIN admin_concert ac ON ac.admin_id = a.admin_id
+                GROUP BY a.admin_id
+                ORDER BY concerts_managed DESC, a.display_name
+                """
+            )
+            reports["admin_concert_assignments"] = {
+                "by_concert": by_concert,
+                "workload": _json_safe_rows(cur.fetchall()),
+            }
+
+            cur.execute(
+                """
+                SELECT
+                    COALESCE(v.venue_name, '-') AS venue,
+                    MIN(z.price) AS min_price,
+                    MAX(z.price) AS max_price,
+                    ROUND(AVG(z.price), 2) AS avg_price,
+                    MAX(z.price) - MIN(z.price) AS price_range
+                FROM venue v
+                JOIN showtime s ON s.venue_id = v.venue_id
+                JOIN zone z ON z.showtime_id = s.showtime_id
+                GROUP BY v.venue_id
+                ORDER BY price_range DESC, avg_price DESC
+                """
+            )
+            reports["venue_ticket_price_range"] = _json_safe_rows(cur.fetchall())
+
+            cur.execute(
+                """
+                WITH ticket_counts AS (
+                    SELECT b.booking_id, COUNT(t.ticket_id) AS ticket_count
+                    FROM booking b
+                    LEFT JOIN ticket t ON t.booking_id = b.booking_id
+                    GROUP BY b.booking_id
+                )
+                SELECT
+                    ROUND(AVG(ticket_count), 2) AS overall_avg_tickets_per_booking,
+                    MIN(ticket_count) AS min_tickets,
+                    MAX(ticket_count) AS max_tickets,
+                    COUNT(*) AS booking_count
+                FROM ticket_counts
+                """
+            )
+            summary = cur.fetchone()
+            cur.execute(
+                """
+                SELECT
+                    ticket_count,
+                    COUNT(*) AS booking_count
+                FROM (
+                    SELECT b.booking_id, COUNT(t.ticket_id) AS ticket_count
+                    FROM booking b
+                    LEFT JOIN ticket t ON t.booking_id = b.booking_id
+                    GROUP BY b.booking_id
+                ) counts
+                GROUP BY ticket_count
+                ORDER BY ticket_count
+                """
+            )
+            reports["avg_tickets_per_booking"] = {
+                "summary": {key: _decimal_to_float(value) for key, value in summary.items()},
+                "distribution": _json_safe_rows(cur.fetchall()),
+            }
+
+    return reports

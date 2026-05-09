@@ -41,6 +41,7 @@ export const api = {
   cleanup: () => request("/api/admin/cleanup"),
   deleteBooking: (bookingId) => request(`/api/admin/bookings/${bookingId}`, { method: "DELETE" }),
   loyalty: () => request("/api/admin/loyalty"),
+  analytics: () => request("/api/admin/analytics"),
   createConcert: (payload) => request("/api/admin/concerts", { method: "POST", body: JSON.stringify(payload) }),
   deleteConcert: (concertId) => request(`/api/admin/concerts/${concertId}`, { method: "DELETE" }),
   revenue: ({ month, year }) => {
