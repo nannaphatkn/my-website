@@ -11,7 +11,13 @@ const ZONE_COLORS = {
   "ZONE A": { bg: "#7b68ee", text: "#fff" },
   "ZONE B": { bg: "#4ecdc4", text: "#fff" },
   "ZONE C": { bg: "#95afc0", text: "#fff" },
+  "VIP": { bg: "#e74c8b", text: "#fff" },
+  "Standard": { bg: "#4ecdc4", text: "#fff" },
+  "Economy": { bg: "#95afc0", text: "#fff" },
 };
+
+/* Zone names that match the hardcoded JAEHYUN-style stage map */
+const STAGE_MAP_ZONES = new Set(["VIP PACKAGE", "STANDING", "ZONE A", "ZONE B", "ZONE C"]);
 
 const CATEGORIES = ["Entertainment", "Business", "Sports", "Lifestyle", "Vouchers"];
 
@@ -78,6 +84,7 @@ export default function CustomerBookingPage() {
   const selectedTotal = useMemo(() => selectedSeatRows.reduce((sum, s) => sum + Number(s.price || 0), 0), [selectedSeatRows]);
   const zoneSeats = useMemo(() => selectedZone ? seatData.seats.filter((s) => s.zone_name === selectedZone) : [], [seatData.seats, selectedZone]);
   const priceString = useMemo(() => seatData.zones.sort((a, b) => b.price - a.price).map((z) => `${money(z.price)} (${z.zone_name})`).join(" / "), [seatData.zones]);
+  const useStageMap = useMemo(() => seatData.zones.length > 0 && seatData.zones.every((z) => STAGE_MAP_ZONES.has(z.zone_name)), [seatData.zones]);
 
   function openEvent(concert) { setSelectedShowtime(concert.showtimes[0].showtime_id); setStep("info"); }
   function toggleSeat(s) { if (s.seat_status !== "available" || booking) return; setSelectedSeats((c) => c.includes(s.seat_id) ? c.filter((i) => i !== s.seat_id) : [...c, s.seat_id]); }
@@ -194,7 +201,8 @@ export default function CustomerBookingPage() {
               <div className="tmContent">
                 <h2 className="tmEventTitle">{activeConcert?.title}</h2>
                 <h3 className="tmSectionTitle">Choose Zone</h3>
-                {/* Stage map */}
+                {/* Stage map / Dynamic zone picker */}
+                {useStageMap ? (
                 <div className="tmMapWrapper">
                   <div className="tmStageMap">
                     <div className="tmStageLabel">STAGE</div>
@@ -246,6 +254,34 @@ export default function CustomerBookingPage() {
                     <p className="tmRemarkNote">* โซน Flamin', Hot และ Lemon เป็นแพลตฟอร์มยกระดับสูง 40 ซม.</p>
                   </div>
                 </div>
+                ) : (
+                <div className="tmDynamicZones">
+                  <div className="tmDynStage"><span>STAGE</span></div>
+                  <div className="tmDynGrid">
+                    {seatData.zones.map((z) => {
+                      const color = ZONE_COLORS[z.zone_name] || { bg: "#6c757d", text: "#fff" };
+                      const isActive = selectedZone === z.zone_name;
+                      return (
+                        <button
+                          key={z.zone_id}
+                          type="button"
+                          className={`tmDynZoneCard ${isActive ? "selected" : ""}`}
+                          style={{ "--zone-color": color.bg }}
+                          onClick={() => setSelectedZone(z.zone_name)}
+                        >
+                          <div className="tmDynZoneHeader" style={{ background: color.bg, color: color.text }}>
+                            <strong>{z.zone_name}</strong>
+                          </div>
+                          <div className="tmDynZoneBody">
+                            <span className="tmDynPrice">฿{money(z.price)}</span>
+                            <span className="tmDynAvail">{z.available_seats}/{z.total_seat} available</span>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+                )}
 
                 {selectedZone && (
                   <div className="tmSeatSection">
@@ -273,7 +309,7 @@ export default function CustomerBookingPage() {
                     </div>
                   </div>
                 )}
-                {!selectedZone && <button className="button secondary tmBackBtn" onClick={() => setStep("info")} type="button">← Back to Event Info</button>}
+                <button className="button secondary tmBackBtn" onClick={() => { setStep("info"); setSelectedSeats([]); setSelectedZone(null); }} type="button">← Back to Event Info</button>
                 {notice && <p className="noticeText tmNotice">{notice}</p>}
               </div>
             </motion.div>

@@ -2713,6 +2713,86 @@ label {
   line-height: 1.4;
 }
 
+/* ── Dynamic zone picker (generic layout) ───────────────────── */
+.tmDynamicZones {
+  margin-bottom: 28px;
+}
+
+.tmDynStage {
+  width: 50%;
+  margin: 0 auto 24px;
+  padding: 18px 24px;
+  text-align: center;
+  color: #fff;
+  background: #1a1a1a;
+  border-radius: 4px;
+  font-weight: 900;
+  font-size: 1.5rem;
+  letter-spacing: 0.12em;
+}
+
+.tmDynGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 14px;
+}
+
+.tmDynZoneCard {
+  display: flex;
+  flex-direction: column;
+  background: #f5f0e8;
+  border: 2px solid #d5c9b4;
+  border-radius: 10px;
+  overflow: hidden;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  font-family: inherit;
+}
+
+.tmDynZoneCard:hover {
+  border-color: var(--zone-color, #777);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
+}
+
+.tmDynZoneCard.selected {
+  border-color: var(--zone-color, #333);
+  box-shadow: 0 0 0 3px var(--zone-color, #333), 0 8px 24px rgba(0, 0, 0, 0.18);
+  transform: scale(1.03);
+}
+
+.tmDynZoneHeader {
+  padding: 14px 16px;
+  text-align: center;
+}
+
+.tmDynZoneHeader strong {
+  font-size: 1rem;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.tmDynZoneBody {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 14px 16px;
+}
+
+.tmDynPrice {
+  font-size: 1.2rem;
+  font-weight: 900;
+  color: var(--ink);
+}
+
+.tmDynAvail {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--muted);
+}
+
 /* ── Seat grid ───────────────────────────────────────────────── */
 .tmSeatSection {
   margin: 28px 0;
