@@ -45,6 +45,17 @@ class SeatHoldRequest(BaseModel):
     seat_ids: list[int] = Field(..., min_length=1)
 
 
+class SeatSelectRequest(BaseModel):
+    showtime_id: int = Field(..., gt=0)
+    seat_id: int = Field(..., gt=0)
+    booking_id: Optional[int] = Field(default=None, gt=0)
+
+
+class SeatReleaseRequest(BaseModel):
+    booking_id: int = Field(..., gt=0)
+    seat_id: int = Field(..., gt=0)
+
+
 class PaymentConfirmRequest(BaseModel):
     booking_id: int = Field(..., gt=0)
     payment_method: str = Field(default="card", min_length=1, max_length=50)

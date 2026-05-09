@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import os
 import uuid
+from datetime import datetime
 from decimal import Decimal
 
 import psycopg2
@@ -17,6 +18,8 @@ from .schemas import (
     PaymentConfirmRequest,
     RegisterRequest,
     SeatHoldRequest,
+    SeatReleaseRequest,
+    SeatSelectRequest,
     ZoneUpdate,
 )
 from .security import create_access_token, hash_password, verify_password
@@ -330,6 +333,178 @@ def hold_seats(payload: SeatHoldRequest, principal: Principal = Depends(require_
         "total_amount": booking["total_amount"],
         "seat_ids": unique_seat_ids,
     }
+
+
+@app.post("/api/bookings/select-seat", status_code=status.HTTP_201_CREATED)
+def select_seat(payload: SeatSelectRequest, principal: Principal = Depends(require_customer)):
+    release_expired_locks()
+    with db_session() as conn:
+        with conn.cursor() as cur:
+            booking = None
+            if payload.booking_id is not None:
+                cur.execute(
+                    """
+                    SELECT booking_id, user_id, showtime_id, booking_status, hold_expires_at
+                    FROM booking
+                    WHERE booking_id = %s
+                    FOR UPDATE
+                    """,
+                    (payload.booking_id,),
+                )
+                booking = cur.fetchone()
+                if not booking:
+                    raise HTTPException(status_code=404, detail="Booking hold not found")
+                if booking["user_id"] != principal.id:
+                    raise HTTPException(status_code=403, detail="Cannot update another customer's booking")
+                if booking["booking_status"] != "pending" or booking["hold_expires_at"] < datetime.now(booking["hold_expires_at"].tzinfo):
+                    raise HTTPException(status_code=409, detail="Booking hold is no longer active")
+                if booking["showtime_id"] != payload.showtime_id:
+                    raise HTTPException(status_code=400, detail="Seat belongs to a different showtime")
+
+            cur.execute(
+                """
+                SELECT s.seat_id, s.seat_status, z.price
+                FROM seat s
+                JOIN zone z ON z.zone_id = s.zone_id
+                WHERE z.showtime_id = %s
+                  AND s.seat_id = %s
+                FOR UPDATE OF s
+                """,
+                (payload.showtime_id, payload.seat_id),
+            )
+            seat = cur.fetchone()
+            if not seat:
+                raise HTTPException(status_code=404, detail="Seat not found for this showtime")
+            if seat["seat_status"] != "available":
+                raise HTTPException(status_code=409, detail="Seat is already reserved or sold")
+
+            if booking is None:
+                cur.execute(
+                    """
+                    INSERT INTO booking (user_id, showtime_id, booking_amount, total_amount, hold_expires_at)
+                    VALUES (%s, %s, 1, %s, NOW() + INTERVAL '15 minutes')
+                    RETURNING booking_id, hold_expires_at, total_amount, booking_amount
+                    """,
+                    (principal.id, payload.showtime_id, seat["price"]),
+                )
+                booking = cur.fetchone()
+                should_increment_booking = False
+            else:
+                should_increment_booking = True
+
+            cur.execute(
+                """
+                UPDATE seat
+                SET seat_status = 'pending', locked_until = %s
+                WHERE seat_id = %s
+                """,
+                (booking["hold_expires_at"], payload.seat_id),
+            )
+            cur.execute(
+                """
+                INSERT INTO ticket (booking_id, showtime_id, seat_id, price_paid, ticket_status)
+                VALUES (%s, %s, %s, %s, 'held')
+                """,
+                (booking["booking_id"], payload.showtime_id, payload.seat_id, seat["price"]),
+            )
+            if should_increment_booking:
+                cur.execute(
+                    """
+                    UPDATE booking
+                    SET booking_amount = booking_amount + 1,
+                        total_amount = total_amount + %s
+                    WHERE booking_id = %s
+                    RETURNING booking_id, hold_expires_at, total_amount, booking_amount
+                    """,
+                    (seat["price"], booking["booking_id"]),
+                )
+                updated = cur.fetchone()
+            else:
+                updated = booking
+
+    return {
+        "booking_id": updated["booking_id"],
+        "hold_expires_at": updated["hold_expires_at"],
+        "total_amount": _decimal_to_float(updated["total_amount"]),
+        "booking_amount": updated["booking_amount"],
+        "seat_id": payload.seat_id,
+    }
+
+
+@app.post("/api/bookings/release-seat")
+def release_selected_seat(payload: SeatReleaseRequest, principal: Principal = Depends(require_customer)):
+    release_expired_locks()
+    with db_session() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT booking_id, user_id, booking_status
+                FROM booking
+                WHERE booking_id = %s
+                FOR UPDATE
+                """,
+                (payload.booking_id,),
+            )
+            booking = cur.fetchone()
+            if not booking:
+                return {"booking": None, "released_seat_id": payload.seat_id}
+            if booking["user_id"] != principal.id:
+                raise HTTPException(status_code=403, detail="Cannot update another customer's booking")
+            if booking["booking_status"] != "pending":
+                raise HTTPException(status_code=409, detail="Only pending holds can release seats")
+
+            cur.execute(
+                """
+                SELECT ticket_id, price_paid
+                FROM ticket
+                WHERE booking_id = %s
+                  AND seat_id = %s
+                  AND ticket_status = 'held'
+                FOR UPDATE
+                """,
+                (payload.booking_id, payload.seat_id),
+            )
+            ticket = cur.fetchone()
+            if not ticket:
+                return {"booking": booking, "released_seat_id": payload.seat_id}
+
+            cur.execute("DELETE FROM ticket WHERE ticket_id = %s", (ticket["ticket_id"],))
+            cur.execute(
+                """
+                UPDATE seat
+                SET seat_status = 'available', locked_until = NULL
+                WHERE seat_id = %s
+                  AND seat_status = 'pending'
+                """,
+                (payload.seat_id,),
+            )
+            cur.execute(
+                """
+                SELECT COUNT(*) AS remaining_tickets
+                FROM ticket
+                WHERE booking_id = %s
+                  AND ticket_status = 'held'
+                """,
+                (payload.booking_id,),
+            )
+            remaining = cur.fetchone()["remaining_tickets"]
+            if remaining <= 0:
+                cur.execute("DELETE FROM booking WHERE booking_id = %s", (payload.booking_id,))
+                return {"booking": None, "released_seat_id": payload.seat_id}
+            cur.execute(
+                """
+                UPDATE booking
+                SET booking_amount = %s,
+                    total_amount = GREATEST(total_amount - %s, 0)
+                WHERE booking_id = %s
+                RETURNING booking_id, booking_amount, total_amount, hold_expires_at
+                """,
+                (remaining, ticket["price_paid"], payload.booking_id),
+            )
+            updated = cur.fetchone()
+
+    updated["total_amount"] = _decimal_to_float(updated["total_amount"])
+    return {"booking": updated, "released_seat_id": payload.seat_id}
 
 
 @app.post("/api/payments/confirm")

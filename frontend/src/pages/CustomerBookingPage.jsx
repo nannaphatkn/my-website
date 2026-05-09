@@ -1,4 +1,4 @@
-import { CalendarDays, CheckCircle2, CreditCard, Clock, DollarSign, History, MapPin, Search, Ticket } from "lucide-react";
+import { CalendarDays, CheckCircle2, CreditCard, Clock, DollarSign, Download, History, MapPin, Search, Ticket } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { api } from "../api";
@@ -61,6 +61,9 @@ function money(v) { return new Intl.NumberFormat("th-TH", { maximumFractionDigit
 function dateFmt(d) { if (!d) return ""; return new Date(d + "T00:00:00").toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" }); }
 function dateShort(d) { if (!d) return ""; return new Date(d + "T00:00:00").toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }).toUpperCase(); }
 function dayOfWeek(d) { if (!d) return ""; return new Date(d + "T00:00:00").toLocaleDateString("en-GB", { weekday: "short" }).toUpperCase(); }
+function escapeHtml(value) {
+  return String(value ?? "").replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#039;" }[char]));
+}
 
 function DemoPayment({ amount, method }) {
   const demo = PAYMENT_DEMOS[method];
@@ -121,11 +124,14 @@ export default function CustomerBookingPage() {
   const [selectedZone, setSelectedZone] = useState(null);
   const [booking, setBooking] = useState(null);
   const [paymentRef, setPaymentRef] = useState("");
+  const [ticketReceipt, setTicketReceipt] = useState(null);
   const [notice, setNotice] = useState("");
   const [loading, setLoading] = useState(true);
   const [step, setStep] = useState("browse"); // browse | history | info | seats | checkout | done
   const [historyRows, setHistoryRows] = useState([]);
   const [historyLoading, setHistoryLoading] = useState(false);
+  const [seatsRefreshing, setSeatsRefreshing] = useState(false);
+  const [lastSeatRefresh, setLastSeatRefresh] = useState(null);
   const [activeCat, setActiveCat] = useState("Entertainment");
   const [searchQ, setSearchQ] = useState("");
   const [payment, setPayment] = useState({ method: "card", cardName: session?.name || "", cardNumber: "", expiry: "", cvc: "" });
@@ -140,7 +146,27 @@ export default function CustomerBookingPage() {
   }, [grouped, activeCat, searchQ]);
 
   async function loadConcerts() { setLoading(true); const d = await api.concerts(); setConcerts(d); setLoading(false); }
-  async function loadSeats(id) { if (!id) return; setSeatData(await api.seats(id)); }
+  async function loadSeats(id, options = {}) {
+    if (!id) return;
+    const data = await api.seats(id);
+    setSeatData(data);
+    setLastSeatRefresh(new Date());
+    if (options.keepSelection) {
+      const stillHeldOrOpen = new Set(data.seats.filter((seat) => ["available", "pending"].includes(seat.seat_status)).map((seat) => seat.seat_id));
+      setSelectedSeats((current) => current.filter((seatId) => stillHeldOrOpen.has(seatId)));
+    }
+  }
+  async function refreshSeatsNow() {
+    if (!selectedShowtime) return;
+    setSeatsRefreshing(true);
+    try {
+      await loadSeats(selectedShowtime, { keepSelection: !booking });
+    } catch (e) {
+      setNotice(e.message);
+    } finally {
+      setSeatsRefreshing(false);
+    }
+  }
   async function openHistory() {
     setNotice("");
     setHistoryLoading(true);
@@ -160,6 +186,13 @@ export default function CustomerBookingPage() {
     setSelectedSeats([]); setSelectedZone(null); setBooking(null); setPaymentRef("");
     loadSeats(selectedShowtime).catch((e) => setNotice(e.message));
   }, [selectedShowtime]);
+  useEffect(() => {
+    if (!selectedShowtime || step !== "seats") return undefined;
+    const timer = window.setInterval(() => {
+      loadSeats(selectedShowtime, { keepSelection: true }).catch((e) => setNotice(e.message));
+    }, 3000);
+    return () => window.clearInterval(timer);
+  }, [selectedShowtime, step]);
 
   const activeConcert = useMemo(() => concerts.find((c) => c.showtime_id === Number(selectedShowtime)), [concerts, selectedShowtime]);
   const concertShowtimes = useMemo(() => concerts.filter((c) => c.concert_id === activeConcert?.concert_id), [concerts, activeConcert]);
@@ -170,10 +203,140 @@ export default function CustomerBookingPage() {
   const useStageMap = useMemo(() => seatData.zones.length > 0 && seatData.zones.every((z) => STAGE_MAP_ZONES.has(z.zone_name)), [seatData.zones]);
 
   function openEvent(concert) { setSelectedShowtime(concert.showtimes[0].showtime_id); setStep("info"); }
-  function toggleSeat(s) { if (s.seat_status !== "available" || booking) return; setSelectedSeats((c) => c.includes(s.seat_id) ? c.filter((i) => i !== s.seat_id) : [...c, s.seat_id]); }
-  async function holdSeats() { setNotice(""); try { const h = await api.holdSeats({ showtime_id: Number(selectedShowtime), seat_ids: selectedSeats }); setBooking(h); await loadSeats(selectedShowtime); setStep("checkout"); } catch (e) { setNotice(e.message); await loadSeats(selectedShowtime); } }
-  async function confirmPay() { setNotice(""); try { const c = await api.confirmPayment({ booking_id: booking.booking_id, payment_method: payment.method }); setPaymentRef(c.transaction_ref); await loadSeats(selectedShowtime); await loadConcerts(); setStep("done"); } catch (e) { setNotice(e.message); } }
-  function resetFlow() { setStep("browse"); setSelectedSeats([]); setSelectedZone(null); setBooking(null); setPaymentRef(""); setSelectedShowtime(null); }
+  async function toggleSeat(s) {
+    setNotice("");
+    const alreadySelected = selectedSeats.includes(s.seat_id);
+    try {
+      if (alreadySelected) {
+        if (booking?.booking_id) {
+          const released = await api.releaseSeat({ booking_id: booking.booking_id, seat_id: s.seat_id });
+          setBooking(released.booking);
+        }
+        setSelectedSeats((current) => current.filter((seatId) => seatId !== s.seat_id));
+        await loadSeats(selectedShowtime, { keepSelection: true });
+        return;
+      }
+      if (s.seat_status !== "available") {
+        setNotice("This seat was just reserved by someone else. Please choose another seat.");
+        await loadSeats(selectedShowtime, { keepSelection: true });
+        return;
+      }
+      const held = await api.selectSeat({
+        showtime_id: Number(selectedShowtime),
+        seat_id: s.seat_id,
+        booking_id: booking?.booking_id || null,
+      });
+      setBooking(held);
+      setSelectedSeats((current) => [...current, s.seat_id]);
+      await loadSeats(selectedShowtime, { keepSelection: true });
+    } catch (e) {
+      setNotice(e.message || "Seat is no longer available.");
+      await loadSeats(selectedShowtime, { keepSelection: true });
+    }
+  }
+  async function holdSeats() {
+    setNotice("");
+    if (!selectedSeats.length || !booking?.booking_id) {
+      setNotice("Please select at least one available seat.");
+      return;
+    }
+    await loadSeats(selectedShowtime, { keepSelection: true });
+    setStep("checkout");
+  }
+  async function clearSeatHold(nextStep = "info") {
+    if (booking?.booking_id) {
+      await Promise.allSettled(selectedSeats.map((seatId) => api.releaseSeat({ booking_id: booking.booking_id, seat_id: seatId })));
+    }
+    setSelectedSeats([]);
+    setSelectedZone(null);
+    setBooking(null);
+    setStep(nextStep);
+    await loadSeats(selectedShowtime).catch((e) => setNotice(e.message));
+  }
+  async function confirmPay() {
+    setNotice("");
+    try {
+      const c = await api.confirmPayment({ booking_id: booking.booking_id, payment_method: payment.method });
+      setPaymentRef(c.transaction_ref);
+      setTicketReceipt(c);
+      await loadSeats(selectedShowtime);
+      await loadConcerts();
+      setStep("done");
+    } catch (e) {
+      setNotice(e.message);
+    }
+  }
+  function downloadTicketPdf() {
+    const seats = selectedSeatRows.map((s) => `${s.zone_name} ${s.seat_no}`);
+    const paymentMethod = PAYMENT_METHODS.find((method) => method.id === payment.method)?.label || payment.method;
+    const paidAt = ticketReceipt?.paid_at ? new Date(ticketReceipt.paid_at).toLocaleString() : new Date().toLocaleString();
+    const ticketNo = `NN-${booking?.booking_id || "000"}-${(paymentRef || "CONFIRMED").slice(-6)}`;
+    const html = `<!doctype html>
+      <html>
+        <head>
+          <title>NodNod Ticket ${escapeHtml(ticketNo)}</title>
+          <style>
+            @page { size: A4; margin: 18mm; }
+            * { box-sizing: border-box; }
+            body { margin: 0; font-family: Arial, sans-serif; color: #221a15; background: #f8f0df; }
+            .ticket { max-width: 760px; margin: 0 auto; border: 2px solid #221a15; background: #fff8e8; }
+            .top { display: flex; justify-content: space-between; gap: 24px; padding: 28px; border-bottom: 2px dashed #221a15; background: #2ed8c3; color: #10101f; }
+            .brand { letter-spacing: 4px; font-size: 12px; font-weight: 900; text-transform: uppercase; }
+            h1 { margin: 8px 0 0; font-size: 30px; line-height: 1.08; }
+            .admit { min-width: 150px; text-align: center; border: 2px solid #10101f; padding: 14px; font-weight: 900; text-transform: uppercase; }
+            .body { padding: 28px; }
+            .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 22px; }
+            .box { border: 1px solid #d0b98d; padding: 13px; background: #fffdf5; }
+            .box span { display: block; color: #8a6d43; font-size: 11px; font-weight: 900; letter-spacing: 1.5px; text-transform: uppercase; margin-bottom: 6px; }
+            .box strong { font-size: 16px; }
+            .seats { font-size: 22px; font-weight: 900; color: #d94486; }
+            .footer { display: flex; justify-content: space-between; align-items: end; gap: 18px; margin-top: 28px; padding-top: 18px; border-top: 2px dashed #d0b98d; }
+            .qr { width: 116px; height: 116px; display: grid; place-items: center; border: 8px solid #221a15; font-weight: 900; font-size: 28px; }
+            .small { color: #6f5b3e; font-size: 12px; line-height: 1.6; }
+          </style>
+        </head>
+        <body>
+          <main class="ticket">
+            <section class="top">
+              <div>
+                <div class="brand">NodNod Tickets</div>
+                <h1>${escapeHtml(activeConcert?.title || "Concert Ticket")}</h1>
+              </div>
+              <div class="admit">Admit<br />${seats.length || 1}</div>
+            </section>
+            <section class="body">
+              <div class="seats">${escapeHtml(seats.join(", ") || "Seat confirmed")}</div>
+              <div class="grid">
+                <div class="box"><span>Ticket No.</span><strong>${escapeHtml(ticketNo)}</strong></div>
+                <div class="box"><span>Booking</span><strong>#${escapeHtml(booking?.booking_id)}</strong></div>
+                <div class="box"><span>Date</span><strong>${escapeHtml(dateFmt(activeConcert?.show_date))}</strong></div>
+                <div class="box"><span>Time</span><strong>${escapeHtml(activeConcert?.show_time || "")}</strong></div>
+                <div class="box"><span>Venue</span><strong>${escapeHtml(activeConcert?.venue_name || "")}</strong></div>
+                <div class="box"><span>Payment</span><strong>${escapeHtml(paymentMethod)}</strong></div>
+                <div class="box"><span>Paid At</span><strong>${escapeHtml(paidAt)}</strong></div>
+                <div class="box"><span>Total</span><strong>THB ${escapeHtml(money(ticketReceipt?.amount || booking?.total_amount || selectedTotal))}</strong></div>
+              </div>
+              <div class="footer">
+                <div class="small">
+                  Payment Ref: ${escapeHtml(paymentRef || "Confirmed")}<br />
+                  Present this ticket at the entrance. Demo ticket generated by NodNod.
+                </div>
+                <div class="qr">NN</div>
+              </div>
+            </section>
+          </main>
+          <script>window.onload = () => { window.print(); };</script>
+        </body>
+      </html>`;
+    const printWindow = window.open("", "_blank");
+    if (!printWindow) {
+      setNotice("Please allow popups, then click Download PDF again.");
+      return;
+    }
+    printWindow.document.write(html);
+    printWindow.document.close();
+  }
+  function resetFlow() { setStep("browse"); setSelectedSeats([]); setSelectedZone(null); setBooking(null); setPaymentRef(""); setTicketReceipt(null); setSelectedShowtime(null); }
 
   return (
     <AppShell>
@@ -422,10 +585,18 @@ export default function CustomerBookingPage() {
 
                 {selectedZone && (
                   <div className="tmSeatSection">
-                    <h4>Select seats in {selectedZone}</h4>
+                    <div className="tmSeatHeader">
+                      <div>
+                        <h4>Select seats in {selectedZone}</h4>
+                        <span>Auto-refresh every 3 seconds{lastSeatRefresh ? ` · Updated ${lastSeatRefresh.toLocaleTimeString()}` : ""}</span>
+                      </div>
+                      <button className="button secondary compact" onClick={refreshSeatsNow} disabled={seatsRefreshing} type="button">
+                        {seatsRefreshing ? "Refreshing..." : "Refresh Seats"}
+                      </button>
+                    </div>
                     <div className="tmSeatGrid">
                       {zoneSeats.map((seat) => (
-                        <button className={`seatButton ${seat.seat_status} ${selectedSeats.includes(seat.seat_id) ? "selected" : ""}`} key={seat.seat_id} onClick={() => toggleSeat(seat)} disabled={seat.seat_status !== "available"} title={`${seat.zone_name} ${seat.seat_no}`} type="button">{seat.seat_no}</button>
+                        <button className={`seatButton ${seat.seat_status} ${selectedSeats.includes(seat.seat_id) ? "selected" : ""}`} key={seat.seat_id} onClick={() => toggleSeat(seat)} disabled={seat.seat_status !== "available" && !selectedSeats.includes(seat.seat_id)} title={`${seat.zone_name} ${seat.seat_no}`} type="button">{seat.seat_no}</button>
                       ))}
                     </div>
                     <div className="seatLegend"><span><i className="available" /> Available</span><span><i className="selected" /> Selected</span><span><i className="pending" /> Reserved</span><span><i className="sold" /> Sold</span></div>
@@ -441,12 +612,12 @@ export default function CustomerBookingPage() {
                       <div><span>Total:</span> <strong className="tmTotalPrice">฿{money(selectedTotal)}</strong></div>
                     </div>
                     <div className="tmTicketActions">
-                      <button className="button secondary" onClick={() => { setStep("info"); setSelectedSeats([]); setSelectedZone(null); }} type="button">Back</button>
+                      <button className="button secondary" onClick={() => clearSeatHold("info")} type="button">Back</button>
                       <button className="button primary" onClick={holdSeats} disabled={!selectedSeats.length} type="button">Hold Seats & Continue</button>
                     </div>
                   </div>
                 )}
-                <button className="button secondary tmBackBtn" onClick={() => { setStep("info"); setSelectedSeats([]); setSelectedZone(null); }} type="button">← Back to Event Info</button>
+                <button className="button secondary tmBackBtn" onClick={() => clearSeatHold("info")} type="button">← Back to Event Info</button>
                 {notice && <p className="noticeText tmNotice">{notice}</p>}
               </div>
             </motion.div>
@@ -508,14 +679,37 @@ export default function CustomerBookingPage() {
                 <div className="tmConfirmation">
                   <span className="confirmationBadge"><CheckCircle2 size={18} /> Confirmed</span>
                   <h3>Your tickets are ready!</h3>
-                  <p>A confirmation for {activeConcert?.title} has been sent.</p>
+                  <p>Show this ticket at the entrance, or save it as a PDF.</p>
+
+                  <div className="tmTicketPass">
+                    <div className="tmTicketPassMain">
+                      <span>NODNOD TICKETS</span>
+                      <h4>{activeConcert?.title}</h4>
+                      <div className="tmTicketSeats">
+                        {selectedSeatRows.map((s) => (
+                          <strong key={s.seat_id}>{s.zone_name} · {s.seat_no}</strong>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="tmTicketPassSide">
+                      <span>ADMIT</span>
+                      <strong>{selectedSeatRows.length || 1}</strong>
+                    </div>
+                  </div>
+
                   <div className="tmConfirmMeta">
                     <div><span>Booking</span><strong>#{booking?.booking_id}</strong></div>
+                    <div><span>Ticket No.</span><strong>NN-{booking?.booking_id}-{(paymentRef || "CONFIRMED").slice(-6)}</strong></div>
                     <div><span>Payment Ref</span><strong>{paymentRef || "Confirmed"}</strong></div>
-                    <div><span>Seats</span><strong>{selectedSeatRows.map((s) => s.seat_no).join(", ")}</strong></div>
                     <div><span>Show</span><strong>{dateFmt(activeConcert?.show_date)}</strong></div>
+                    <div><span>Time</span><strong>{activeConcert?.show_time}</strong></div>
+                    <div><span>Venue</span><strong>{activeConcert?.venue_name}</strong></div>
                   </div>
-                  <button className="button primary" onClick={resetFlow} type="button">Book Another Ticket</button>
+
+                  <div className="tmConfirmActions">
+                    <button className="button primary" onClick={downloadTicketPdf} type="button"><Download size={18} /> Download PDF</button>
+                    <button className="button secondary" onClick={resetFlow} type="button">Book Another Ticket</button>
+                  </div>
                 </div>
               </div>
             </motion.div>

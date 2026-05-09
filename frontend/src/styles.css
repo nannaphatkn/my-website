@@ -3116,10 +3116,24 @@ label {
   margin: 28px 0;
 }
 
+.tmSeatHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
 .tmSeatSection h4 {
-  margin: 0 0 14px;
+  margin: 0 0 5px;
   color: var(--ink);
   font-size: 1rem;
+}
+
+.tmSeatHeader span {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 800;
 }
 
 .tmSeatGrid {
@@ -3421,11 +3435,91 @@ label {
   margin-bottom: 24px;
 }
 
+.tmTicketPass {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 120px;
+  max-width: 720px;
+  margin: 0 auto 24px;
+  overflow: hidden;
+  text-align: left;
+  background: #f8eddb;
+  border: 2px solid rgba(255, 255, 255, 0.22);
+  border-radius: 14px;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.28);
+}
+
+.tmTicketPassMain {
+  position: relative;
+  padding: 26px;
+  color: #161421;
+}
+
+.tmTicketPassMain::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  height: 8px;
+  background: linear-gradient(90deg, #e74c8b, #2ed8c3, #ffd46f);
+}
+
+.tmTicketPassMain > span {
+  display: block;
+  margin-bottom: 10px;
+  color: #9a6c35;
+  font-size: 0.75rem;
+  font-weight: 950;
+  letter-spacing: 0.22em;
+}
+
+.tmTicketPassMain h4 {
+  margin: 0;
+  color: #15131f;
+  font-size: clamp(1.25rem, 2vw, 1.9rem);
+  line-height: 1.08;
+}
+
+.tmTicketSeats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 22px;
+}
+
+.tmTicketSeats strong {
+  padding: 9px 12px;
+  color: #ffffff;
+  background: #d94d89;
+  border-radius: 8px;
+  font-size: 0.92rem;
+}
+
+.tmTicketPassSide {
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 10px;
+  min-height: 190px;
+  color: #15131f;
+  background: #2ed8c3;
+  border-left: 2px dashed rgba(21, 19, 31, 0.55);
+}
+
+.tmTicketPassSide span {
+  font-size: 0.75rem;
+  font-weight: 950;
+  letter-spacing: 0.24em;
+}
+
+.tmTicketPassSide strong {
+  font-size: 3rem;
+  line-height: 1;
+}
+
 .tmConfirmMeta {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 14px;
-  max-width: 520px;
+  max-width: 720px;
   margin: 0 auto 28px;
   text-align: left;
 }
@@ -3450,6 +3544,13 @@ label {
   color: var(--ink);
 }
 
+.tmConfirmActions {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
 /* ── Responsive ──────────────────────────────────────────────── */
 @media (max-width: 768px) {
   .tmDescSection {
@@ -3466,6 +3567,20 @@ label {
 
   .tmRemarkBox {
     min-width: unset;
+  }
+
+  .tmTicketPass {
+    grid-template-columns: 1fr;
+  }
+
+  .tmTicketPassSide {
+    min-height: 96px;
+    border-left: 0;
+    border-top: 2px dashed rgba(21, 19, 31, 0.55);
+  }
+
+  .tmConfirmMeta {
+    grid-template-columns: 1fr;
   }
 
   .tmHero {
