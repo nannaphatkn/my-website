@@ -2576,6 +2576,20 @@ label {
   font-weight: 700;
 }
 
+.tmSalesBadge {
+  display: inline-flex;
+  width: fit-content;
+  margin-top: 4px;
+  padding: 4px 8px;
+  color: #f0dcff;
+  background: rgba(168, 85, 247, 0.18);
+  border: 1px solid rgba(192, 132, 252, 0.32);
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-style: normal;
+  font-weight: 900;
+}
+
 .tmViewDetails {
   color: #6d5dfc;
   font-size: 0.78rem;
@@ -2616,9 +2630,13 @@ label {
 .tmGridCard { max-width: none; min-width: 0; }
 
 .tmShowAll {
+  display: block;
   text-align: center;
-  margin-top: 28px;
+  margin: 28px auto 0;
+  padding: 0;
   color: var(--ink);
+  background: transparent;
+  border: 0;
   font-size: 1.1rem;
   font-weight: 800;
   cursor: pointer;
@@ -3645,7 +3663,7 @@ label {
 .bestInfo small{color:rgba(255,255,255,.35);font-size:.7rem}
 .bestBar{flex:1;height:8px;background:rgba(255,255,255,.06);border-radius:10px;overflow:hidden}
 .bestBarFill{height:100%;background:linear-gradient(90deg,#a855f7,#c084fc);border-radius:10px;transition:width .5s}
-.bestPct{color:rgba(255,255,255,.7);font-size:.8rem;font-weight:700;min-width:36px;text-align:right}
+.bestPct{color:rgba(255,255,255,.7);font-size:.8rem;font-weight:700;min-width:58px;text-align:right;white-space:nowrap}
 .recentPanel{margin-top:0}
 .recentHeader{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}
 .recentHeader h3{margin:0;color:#fff;font-size:1rem}

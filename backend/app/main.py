@@ -203,7 +203,17 @@ def list_concerts():
                     s.show_time,
                     v.venue_name,
                     v.city,
-                    COALESCE(SUM(CASE WHEN seat.seat_status = 'available' THEN 1 ELSE 0 END), 0) AS available_seats
+                    COALESCE(SUM(CASE WHEN seat.seat_status = 'available' THEN 1 ELSE 0 END), 0) AS available_seats,
+                    COALESCE(SUM(CASE WHEN seat.seat_status = 'sold' THEN 1 ELSE 0 END), 0) AS sold_seats,
+                    COUNT(seat.seat_id) AS total_seats,
+                    COALESCE(
+                        ROUND(
+                            COALESCE(SUM(CASE WHEN seat.seat_status = 'sold' THEN 1 ELSE 0 END), 0) * 100.0
+                            / NULLIF(COUNT(seat.seat_id), 0),
+                            1
+                        ),
+                        0
+                    ) AS booking_rate
                 FROM concert c
                 JOIN showtime s ON s.concert_id = c.concert_id
                 LEFT JOIN venue v ON v.venue_id = s.venue_id
@@ -638,10 +648,23 @@ def admin_concerts(_: Principal = Depends(require_admin)):
                     c.is_active,
                     MIN(s.show_date) AS next_show_date,
                     COUNT(DISTINCT s.showtime_id) AS showtime_count,
-                    COUNT(DISTINCT b.booking_id) FILTER (WHERE b.booking_status = 'paid') AS paid_bookings
+                    COUNT(DISTINCT b.booking_id) FILTER (WHERE b.booking_status = 'paid') AS paid_bookings,
+                    COUNT(DISTINCT t.ticket_id) FILTER (WHERE t.ticket_status = 'sold') AS sold_tickets,
+                    COUNT(DISTINCT st.seat_id) AS total_seats,
+                    COALESCE(
+                        ROUND(
+                            COUNT(DISTINCT t.ticket_id) FILTER (WHERE t.ticket_status = 'sold') * 100.0
+                            / NULLIF(COUNT(DISTINCT st.seat_id), 0),
+                            1
+                        ),
+                        0
+                    ) AS booking_rate
                 FROM concert c
                 LEFT JOIN showtime s ON s.concert_id = c.concert_id
                 LEFT JOIN booking b ON b.showtime_id = s.showtime_id
+                LEFT JOIN ticket t ON t.booking_id = b.booking_id AND t.ticket_status = 'sold'
+                LEFT JOIN zone z ON z.showtime_id = s.showtime_id
+                LEFT JOIN seat st ON st.zone_id = z.zone_id
                 GROUP BY c.concert_id
                 ORDER BY c.created_at DESC
                 """

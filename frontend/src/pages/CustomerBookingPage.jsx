@@ -19,7 +19,8 @@ const ZONE_COLORS = {
 /* Zone names that match the hardcoded JAEHYUN-style stage map */
 const STAGE_MAP_ZONES = new Set(["VIP PACKAGE", "STANDING", "ZONE A", "ZONE B", "ZONE C"]);
 
-const CATEGORIES = ["Entertainment", "Business", "Sports", "Lifestyle", "Vouchers"];
+const BEST_SELLING_FILTER = "Best Selling Concerts";
+const CATEGORIES = ["All", BEST_SELLING_FILTER, "Entertainment", "Business", "Sports", "Lifestyle", "Vouchers"];
 const PAYMENT_METHODS = [
   { id: "card", label: "Credit / Debit Card", icon: "▭", note: "Visa, Mastercard, JCB" },
   { id: "promptpay", label: "PromptPay", icon: "QR", note: "QR code transfer" },
@@ -102,8 +103,25 @@ function DemoPayment({ amount, method }) {
 function groupConcerts(list) {
   const map = {};
   list.forEach((c) => {
-    if (!map[c.concert_id]) map[c.concert_id] = { ...c, showtimes: [] };
-    map[c.concert_id].showtimes.push({ showtime_id: c.showtime_id, show_date: c.show_date, show_time: c.show_time, venue_name: c.venue_name, city: c.city, available_seats: c.available_seats });
+    if (!map[c.concert_id]) map[c.concert_id] = { ...c, showtimes: [], sold_seats: 0, total_seats: 0, booking_rate: 0 };
+    const soldSeats = Number(c.sold_seats || 0);
+    const totalSeats = Number(c.total_seats || 0);
+    map[c.concert_id].sold_seats += soldSeats;
+    map[c.concert_id].total_seats += totalSeats;
+    map[c.concert_id].booking_rate = map[c.concert_id].total_seats
+      ? Math.round((map[c.concert_id].sold_seats / map[c.concert_id].total_seats) * 100)
+      : 0;
+    map[c.concert_id].showtimes.push({
+      showtime_id: c.showtime_id,
+      show_date: c.show_date,
+      show_time: c.show_time,
+      venue_name: c.venue_name,
+      city: c.city,
+      available_seats: c.available_seats,
+      sold_seats: soldSeats,
+      total_seats: totalSeats,
+      booking_rate: Number(c.booking_rate || 0),
+    });
   });
   return Object.values(map);
 }
@@ -132,18 +150,27 @@ export default function CustomerBookingPage() {
   const [historyLoading, setHistoryLoading] = useState(false);
   const [seatsRefreshing, setSeatsRefreshing] = useState(false);
   const [lastSeatRefresh, setLastSeatRefresh] = useState(null);
-  const [activeCat, setActiveCat] = useState("Entertainment");
+  const [activeCat, setActiveCat] = useState("All");
   const [searchQ, setSearchQ] = useState("");
   const [payment, setPayment] = useState({ method: "card", cardName: session?.name || "", cardNumber: "", expiry: "", cvc: "" });
 
   const grouped = useMemo(() => groupConcerts(concerts), [concerts]);
-  const recommended = useMemo(() => grouped.slice(0, 5), [grouped]);
+  const bestSelling = useMemo(
+    () => [...grouped].sort((a, b) => Number(b.sold_seats || 0) - Number(a.sold_seats || 0) || Number(b.booking_rate || 0) - Number(a.booking_rate || 0)),
+    [grouped],
+  );
+  const recommended = useMemo(() => (bestSelling.some((concert) => concert.sold_seats > 0) ? bestSelling : grouped).slice(0, 5), [bestSelling, grouped]);
+  const categoryOptions = useMemo(() => {
+    const dynamicGenres = grouped.map((concert) => concert.genre).filter(Boolean);
+    return [...new Set([...CATEGORIES, ...dynamicGenres])];
+  }, [grouped]);
   const allEvents = useMemo(() => {
     let list = grouped;
-    if (activeCat) list = list.filter((c) => (c.genre || "").toLowerCase().includes(activeCat.toLowerCase()));
+    if (activeCat === BEST_SELLING_FILTER) list = bestSelling;
+    else if (activeCat && activeCat !== "All") list = list.filter((c) => (c.genre || "").toLowerCase().includes(activeCat.toLowerCase()));
     if (searchQ) list = list.filter((c) => c.title.toLowerCase().includes(searchQ.toLowerCase()));
     return list;
-  }, [grouped, activeCat, searchQ]);
+  }, [grouped, bestSelling, activeCat, searchQ]);
 
   async function loadConcerts() { setLoading(true); const d = await api.concerts(); setConcerts(d); setLoading(false); }
   async function loadSeats(id, options = {}) {
@@ -367,6 +394,7 @@ export default function CustomerBookingPage() {
                       <div className="tmEventCardBody">
                         <strong>{c.title}</strong>
                         <small>{dateRange(c.showtimes)}</small>
+                        <em className="tmSalesBadge">{c.sold_seats || 0} sold · {c.booking_rate || 0}%</em>
                         <span className="tmViewDetails">View Details</span>
                       </div>
                     </button>
@@ -376,7 +404,7 @@ export default function CustomerBookingPage() {
                 {/* ── All Events ───── */}
                 <h2 className="tmBrowseTitle tmAllTitle">All Events</h2>
                 <div className="tmCatTabs">
-                  {CATEGORIES.map((cat) => (
+                  {categoryOptions.map((cat) => (
                     <button key={cat} className={`tmCatBtn ${activeCat === cat ? "active" : ""}`} onClick={() => setActiveCat(cat)} type="button">{cat}</button>
                   ))}
                 </div>
@@ -387,13 +415,14 @@ export default function CustomerBookingPage() {
                       <div className="tmEventCardBody">
                         <strong>{c.title}</strong>
                         <small>{dateRange(c.showtimes)}</small>
+                        {activeCat === BEST_SELLING_FILTER && <em className="tmSalesBadge">{c.sold_seats || 0} sold · {c.booking_rate || 0}%</em>}
                         <span className="tmViewDetails">View Details</span>
                       </div>
                     </button>
                   ))}
                 </div>
                 {allEvents.length === 0 && <p style={{ color: "var(--muted)", textAlign: "center", padding: 40 }}>No events found</p>}
-                <p className="tmShowAll">Show all events</p>
+                <button className="tmShowAll" onClick={() => { setActiveCat("All"); setSearchQ(""); }} type="button">Show all events</button>
               </div>
             </motion.div>
           )}

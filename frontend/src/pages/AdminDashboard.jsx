@@ -270,6 +270,17 @@ export default function AdminDashboard() {
     : 0;
   const vipCustomers = loyalty.filter((row) => row.loyalty_status === "VIP");
   const regularCustomers = loyalty.length - vipCustomers.length;
+  const bestSellingConcerts = useMemo(
+    () =>
+      [...concerts]
+        .sort(
+          (a, b) =>
+            Number(b.sold_tickets || 0) - Number(a.sold_tickets || 0) ||
+            Number(b.booking_rate || 0) - Number(a.booking_rate || 0),
+        )
+        .slice(0, 5),
+    [concerts],
+  );
 
   let confirmTitle = "Confirm Delete";
   let confirmBody = "";
@@ -505,13 +516,14 @@ export default function AdminDashboard() {
                   </div>
                   <div className="bestSellingCard">
                     <div className="bestHeader"><span>⭐ Best Selling Concerts</span><button className="viewAllBtn">View All</button></div>
-                    {(concerts.length ? concerts.slice(0,5) : [{title:'Neon Nights Festival',artist:'24 May 2025'},{title:'Arijit Singh – Live',artist:'14 Jun 2025'},{title:'Coldplay: Spheres',artist:'21 Jun 2025'},{title:'Diljit Dosanjh',artist:'05 Jul 2025'},{title:'Sunburn Arena DJ Snake',artist:'19 Jul 2025'}]).map((c,i) => {
-                      const pct = [92,87,76,68,61][i] || 50;
+                    {(bestSellingConcerts.length ? bestSellingConcerts : concerts.slice(0, 5)).map((c,i) => {
+                      const sold = Number(c.sold_tickets || 0);
+                      const pct = Math.min(100, Math.round(Number(c.booking_rate || 0)));
                       return (
                         <div className="bestRow" key={i}>
-                          <div className="bestInfo"><div className="bestAvatar">{c.title?.charAt(0)}</div><div><strong>{c.title}</strong><small>{c.artist}</small></div></div>
+                          <div className="bestInfo"><div className="bestAvatar">{i + 1}</div><div><strong>{c.title}</strong><small>{c.artist}</small></div></div>
                           <div className="bestBar"><div className="bestBarFill" style={{width:pct+'%'}}/></div>
-                          <span className="bestPct">{pct}%</span>
+                          <span className="bestPct">{sold} sold</span>
                         </div>
                       );
                     })}
