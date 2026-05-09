@@ -27,6 +27,7 @@ export const api = {
   login: (payload) => request("/api/auth/login", { method: "POST", body: JSON.stringify(payload) }),
   concerts: () => request("/api/concerts"),
   seats: (showtimeId) => request(`/api/showtimes/${showtimeId}/seats`),
+  bookingHistory: () => request("/api/bookings/history"),
   holdSeats: (payload) => request("/api/bookings/hold", { method: "POST", body: JSON.stringify(payload) }),
   confirmPayment: (payload) => request("/api/payments/confirm", { method: "POST", body: JSON.stringify(payload) }),
   adminDashboard: () => request("/api/admin/dashboard"),

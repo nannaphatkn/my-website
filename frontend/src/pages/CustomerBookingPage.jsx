@@ -1,4 +1,4 @@
-import { CalendarDays, CheckCircle2, CreditCard, Clock, DollarSign, MapPin, Search, Ticket } from "lucide-react";
+import { CalendarDays, CheckCircle2, CreditCard, Clock, DollarSign, History, MapPin, Search, Ticket } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { api } from "../api";
@@ -123,7 +123,9 @@ export default function CustomerBookingPage() {
   const [paymentRef, setPaymentRef] = useState("");
   const [notice, setNotice] = useState("");
   const [loading, setLoading] = useState(true);
-  const [step, setStep] = useState("browse"); // browse | info | seats | checkout | done
+  const [step, setStep] = useState("browse"); // browse | history | info | seats | checkout | done
+  const [historyRows, setHistoryRows] = useState([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
   const [activeCat, setActiveCat] = useState("Entertainment");
   const [searchQ, setSearchQ] = useState("");
   const [payment, setPayment] = useState({ method: "card", cardName: session?.name || "", cardNumber: "", expiry: "", cvc: "" });
@@ -139,6 +141,18 @@ export default function CustomerBookingPage() {
 
   async function loadConcerts() { setLoading(true); const d = await api.concerts(); setConcerts(d); setLoading(false); }
   async function loadSeats(id) { if (!id) return; setSeatData(await api.seats(id)); }
+  async function openHistory() {
+    setNotice("");
+    setHistoryLoading(true);
+    setStep("history");
+    try {
+      setHistoryRows(await api.bookingHistory());
+    } catch (e) {
+      setNotice(e.message);
+    } finally {
+      setHistoryLoading(false);
+    }
+  }
 
   useEffect(() => { loadConcerts().catch((e) => { setNotice(e.message); setLoading(false); }); }, []);
   useEffect(() => {
@@ -175,6 +189,9 @@ export default function CustomerBookingPage() {
                   <Search size={18} />
                   <input placeholder="Search event name, location or keyword" value={searchQ} onChange={(e) => setSearchQ(e.target.value)} />
                 </div>
+                <button className="tmHistoryBtn" onClick={openHistory} type="button">
+                  <History size={18} /> Booking History
+                </button>
               </div>
 
               <div className="tmBrowseContent">
@@ -214,6 +231,57 @@ export default function CustomerBookingPage() {
                 </div>
                 {allEvents.length === 0 && <p style={{ color: "var(--muted)", textAlign: "center", padding: 40 }}>No events found</p>}
                 <p className="tmShowAll">Show all events</p>
+              </div>
+            </motion.div>
+          )}
+
+          {/* ════════ BOOKING HISTORY ════════ */}
+          {step === "history" && (
+            <motion.div key="history" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+              <div className="tmContent">
+                <div className="tmHistoryHeader">
+                  <div>
+                    <h2 className="tmEventTitle">Booking History</h2>
+                    <p>View your previous holds, paid tickets, payment methods, and ticket references.</p>
+                  </div>
+                  <button className="button secondary" onClick={() => setStep("browse")} type="button">← Back to Events</button>
+                </div>
+                {notice && <p className="noticeText tmNotice">{notice}</p>}
+                {historyLoading ? (
+                  <p className="muted">Loading booking history...</p>
+                ) : (
+                  <div className="tmHistoryList">
+                    {historyRows.map((row) => (
+                      <article className="tmHistoryCard" key={row.booking_id}>
+                        <img src={row.poster_url} alt="" />
+                        <div className="tmHistoryInfo">
+                          <div className="tmHistoryTitleRow">
+                            <div>
+                              <h3>{row.concert_title || "Deleted concert"}</h3>
+                              <p>{row.artist} · {row.venue_name}, {row.city}</p>
+                            </div>
+                            <span className={`tmHistoryStatus ${row.booking_status}`}>{row.booking_status}</span>
+                          </div>
+                          <div className="tmHistoryMeta">
+                            <div><span>Date</span><strong>{dateFmt(row.show_date)} · {String(row.show_time || "").slice(0, 5)}</strong></div>
+                            <div><span>Seats</span><strong>{row.seats || "-"}</strong></div>
+                            <div><span>Total</span><strong>฿{money(row.total_amount)}</strong></div>
+                            <div><span>Payment</span><strong>{row.payment_method}</strong></div>
+                            <div><span>Reference</span><strong>{row.transaction_ref}</strong></div>
+                            <div><span>Booked</span><strong>{new Date(row.created_at).toLocaleString()}</strong></div>
+                          </div>
+                        </div>
+                      </article>
+                    ))}
+                    {!historyRows.length && (
+                      <div className="tmHistoryEmpty">
+                        <History size={28} />
+                        <h3>No booking history yet</h3>
+                        <p>Your paid and pending bookings will appear here.</p>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             </motion.div>
           )}

@@ -2308,6 +2308,10 @@ label {
 
 /* ── Search bar ──────────────────────────────────────────────── */
 .tmSearchBar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
   padding: 20px 24px;
   background: rgba(18, 21, 41, 0.6);
   border-bottom: 1px solid var(--line);
@@ -2318,7 +2322,7 @@ label {
   align-items: center;
   gap: 10px;
   max-width: 600px;
-  margin: 0 auto;
+  margin: 0;
   padding: 10px 16px;
   background: rgba(255, 255, 255, 0.06);
   border: 1px solid var(--line);
@@ -2336,6 +2340,161 @@ label {
 }
 
 .tmSearchInput input::placeholder { color: var(--muted); }
+
+.tmHistoryBtn {
+  display: inline-flex;
+  min-height: 46px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 16px;
+  color: #07101b;
+  background: #2ee7c5;
+  border: 1px solid #25f4d0;
+  border-radius: 8px;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.tmHistoryBtn:hover {
+  filter: brightness(1.05);
+}
+
+.tmHistoryHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.tmHistoryHeader p {
+  margin: -10px 0 0;
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.tmHistoryList {
+  display: grid;
+  gap: 14px;
+}
+
+.tmHistoryCard {
+  display: grid;
+  grid-template-columns: 120px minmax(0, 1fr);
+  gap: 16px;
+  padding: 14px;
+  background: rgba(18, 21, 41, 0.7);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+
+.tmHistoryCard img {
+  width: 120px;
+  height: 150px;
+  object-fit: cover;
+  background: #101327;
+  border-radius: 8px;
+}
+
+.tmHistoryInfo {
+  min-width: 0;
+}
+
+.tmHistoryTitleRow {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.tmHistoryTitleRow h3 {
+  margin: 0;
+  color: var(--ink);
+  font-size: 1.05rem;
+}
+
+.tmHistoryTitleRow p {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 0.88rem;
+  font-weight: 700;
+}
+
+.tmHistoryStatus {
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.tmHistoryStatus.paid {
+  color: #071b12;
+  background: #2ee7a1;
+}
+
+.tmHistoryStatus.pending {
+  color: #2b1a00;
+  background: #ffd166;
+}
+
+.tmHistoryStatus.expired,
+.tmHistoryStatus.cancelled {
+  color: #ffe8e8;
+  background: #a33a3a;
+}
+
+.tmHistoryMeta {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.tmHistoryMeta div {
+  min-width: 0;
+  padding: 10px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 8px;
+}
+
+.tmHistoryMeta span {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--muted);
+  font-size: 0.74rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.tmHistoryMeta strong {
+  display: block;
+  overflow: hidden;
+  color: var(--ink);
+  font-size: 0.86rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tmHistoryEmpty {
+  display: grid;
+  min-height: 240px;
+  place-items: center;
+  align-content: center;
+  gap: 8px;
+  color: var(--muted);
+  background: rgba(18, 21, 41, 0.7);
+  border: 1px dashed var(--line);
+  border-radius: 12px;
+  text-align: center;
+}
+
+.tmHistoryEmpty h3,
+.tmHistoryEmpty p {
+  margin: 0;
+}
 
 /* ── Browse content ──────────────────────────────────────────── */
 .tmBrowseContent {

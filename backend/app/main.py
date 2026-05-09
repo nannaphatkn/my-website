@@ -402,6 +402,53 @@ def confirm_payment(
     }
 
 
+@app.get("/api/bookings/history")
+def booking_history(principal: Principal = Depends(require_customer)):
+    release_expired_locks()
+    with db_session() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT
+                    b.booking_id,
+                    b.booking_status,
+                    b.booking_amount,
+                    b.total_amount,
+                    b.hold_expires_at,
+                    b.created_at,
+                    c.title AS concert_title,
+                    c.artist,
+                    c.poster_url,
+                    s.show_date,
+                    s.show_time,
+                    COALESCE(v.venue_name, '-') AS venue_name,
+                    COALESCE(v.city, '-') AS city,
+                    COALESCE(p.payment_method, '-') AS payment_method,
+                    COALESCE(p.transaction_ref, '-') AS transaction_ref,
+                    p.paid_at,
+                    STRING_AGG(DISTINCT z.zone_name || ' ' || st.seat_no, ', ' ORDER BY z.zone_name || ' ' || st.seat_no) AS seats
+                FROM booking b
+                LEFT JOIN showtime s ON s.showtime_id = b.showtime_id
+                LEFT JOIN concert c ON c.concert_id = s.concert_id
+                LEFT JOIN venue v ON v.venue_id = s.venue_id
+                LEFT JOIN ticket t ON t.booking_id = b.booking_id
+                LEFT JOIN seat st ON st.seat_id = t.seat_id
+                LEFT JOIN zone z ON z.zone_id = st.zone_id
+                LEFT JOIN payment p ON p.booking_id = b.booking_id
+                WHERE b.user_id = %s
+                GROUP BY b.booking_id, c.title, c.artist, c.poster_url, s.show_date, s.show_time, v.venue_name, v.city,
+                         p.payment_method, p.transaction_ref, p.paid_at
+                ORDER BY b.created_at DESC
+                """,
+                (principal.id,),
+            )
+            rows = cur.fetchall()
+
+    for row in rows:
+        _money_fields(row, ("total_amount",))
+    return rows
+
+
 @app.get("/api/admin/concerts")
 def admin_concerts(_: Principal = Depends(require_admin)):
     with db_session() as conn:
