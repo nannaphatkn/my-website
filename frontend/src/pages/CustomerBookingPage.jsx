@@ -66,6 +66,49 @@ function escapeHtml(value) {
   return String(value ?? "").replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#039;" }[char]));
 }
 
+const STAGE_AREAS = {
+  "ZONE A - A": { label: "A", zone: "ZONE A", index: 0, parts: 2 },
+  "ZONE A - I": { label: "I", zone: "ZONE A", index: 1, parts: 2 },
+  "Roses": { label: "Roses", zone: "STANDING", index: 0, parts: 2 },
+  "Dandelion": { label: "Dandelion", zone: "STANDING", index: 1, parts: 2 },
+  "ZONE B - B": { label: "B", zone: "ZONE B", index: 0, parts: 2 },
+  "Flamin'": { label: "Flamin'", zone: "VIP PACKAGE", index: 0, parts: 3 },
+  "Hot": { label: "Hot", zone: "VIP PACKAGE", index: 1, parts: 3 },
+  "Lemon": { label: "Lemon", zone: "VIP PACKAGE", index: 2, parts: 3 },
+  "ZONE B - H": { label: "H", zone: "ZONE B", index: 1, parts: 2 },
+  "ZONE C - C": { label: "C", zone: "ZONE C", index: 0, parts: 5 },
+  "ZONE C - G": { label: "G", zone: "ZONE C", index: 1, parts: 5 },
+  "ZONE C - D": { label: "D", zone: "ZONE C", index: 2, parts: 5 },
+  "ZONE C - E": { label: "E", zone: "ZONE C", index: 3, parts: 5 },
+  "ZONE C - F": { label: "F", zone: "ZONE C", index: 4, parts: 5 },
+};
+
+function seatNoNumber(seatNo = "") {
+  const match = String(seatNo).match(/(\d+)$/);
+  return match ? Number(match[1]) : 0;
+}
+
+function sortSeatsByNo(seats) {
+  return [...seats].sort((a, b) => seatNoNumber(a.seat_no) - seatNoNumber(b.seat_no) || String(a.seat_no).localeCompare(String(b.seat_no)));
+}
+
+function splitSeatsForArea(allSeats, area) {
+  if (!area) return [];
+  const zoneSeats = sortSeatsByNo(allSeats.filter((seat) => seat.zone_name === area.zone));
+  const size = Math.ceil(zoneSeats.length / area.parts);
+  return zoneSeats.slice(area.index * size, Math.min(zoneSeats.length, (area.index + 1) * size));
+}
+
+function displayAreaForSeat(seat, allSeats) {
+  const matchingAreas = Object.values(STAGE_AREAS).filter((area) => area.zone === seat.zone_name);
+  for (const area of matchingAreas) {
+    if (splitSeatsForArea(allSeats, area).some((candidate) => candidate.seat_id === seat.seat_id)) {
+      return area.label;
+    }
+  }
+  return seat.zone_name;
+}
+
 function DemoPayment({ amount, method }) {
   const demo = PAYMENT_DEMOS[method];
   if (!demo) return null;
@@ -223,11 +266,22 @@ export default function CustomerBookingPage() {
 
   const activeConcert = useMemo(() => concerts.find((c) => c.showtime_id === Number(selectedShowtime)), [concerts, selectedShowtime]);
   const concertShowtimes = useMemo(() => concerts.filter((c) => c.concert_id === activeConcert?.concert_id), [concerts, activeConcert]);
-  const selectedSeatRows = useMemo(() => seatData.seats.filter((s) => selectedSeats.includes(s.seat_id)), [seatData.seats, selectedSeats]);
-  const selectedTotal = useMemo(() => selectedSeatRows.reduce((sum, s) => sum + Number(s.price || 0), 0), [selectedSeatRows]);
-  const zoneSeats = useMemo(() => selectedZone ? seatData.seats.filter((s) => s.zone_name === selectedZone) : [], [seatData.seats, selectedZone]);
-  const priceString = useMemo(() => seatData.zones.sort((a, b) => b.price - a.price).map((z) => `${money(z.price)} (${z.zone_name})`).join(" / "), [seatData.zones]);
   const useStageMap = useMemo(() => seatData.zones.length > 0 && seatData.zones.every((z) => STAGE_MAP_ZONES.has(z.zone_name)), [seatData.zones]);
+  const selectedSeatRows = useMemo(
+    () => seatData.seats
+      .filter((s) => selectedSeats.includes(s.seat_id))
+      .map((seat) => ({ ...seat, display_zone_name: useStageMap ? displayAreaForSeat(seat, seatData.seats) : seat.zone_name })),
+    [seatData.seats, selectedSeats, useStageMap],
+  );
+  const selectedTotal = useMemo(() => selectedSeatRows.reduce((sum, s) => sum + Number(s.price || 0), 0), [selectedSeatRows]);
+  const selectedStageArea = useMemo(() => STAGE_AREAS[selectedZone] || null, [selectedZone]);
+  const selectedZoneLabel = selectedStageArea?.label || selectedZone;
+  const zoneSeats = useMemo(() => {
+    if (!selectedZone) return [];
+    if (selectedStageArea) return splitSeatsForArea(seatData.seats, selectedStageArea);
+    return seatData.seats.filter((s) => s.zone_name === selectedZone);
+  }, [seatData.seats, selectedStageArea, selectedZone]);
+  const priceString = useMemo(() => seatData.zones.sort((a, b) => b.price - a.price).map((z) => `${money(z.price)} (${z.zone_name})`).join(" / "), [seatData.zones]);
 
   function openEvent(concert) { setSelectedShowtime(concert.showtimes[0].showtime_id); setStep("info"); }
   async function toggleSeat(s) {
@@ -294,7 +348,7 @@ export default function CustomerBookingPage() {
     }
   }
   function downloadTicketPdf() {
-    const seats = selectedSeatRows.map((s) => `${s.zone_name} ${s.seat_no}`);
+    const seats = selectedSeatRows.map((s) => `${s.display_zone_name || s.zone_name} ${s.seat_no}`);
     const paymentMethod = PAYMENT_METHODS.find((method) => method.id === payment.method)?.label || payment.method;
     const paidAt = ticketReceipt?.paid_at ? new Date(ticketReceipt.paid_at).toLocaleString() : new Date().toLocaleString();
     const ticketNo = `NN-${booking?.booking_id || "000"}-${(paymentRef || "CONFIRMED").slice(-6)}`;
@@ -537,38 +591,38 @@ export default function CustomerBookingPage() {
                     <div className="tmStageLabel">STAGE</div>
                     <div className="tmMapRow tmRow1">
                       <div className="tmMapSide tmSideLeft">
-                        <button type="button" className={`tmBlock tmZoneA ${selectedZone === "ZONE A" ? "selected" : ""}`} onClick={() => setSelectedZone("ZONE A")}><strong>A</strong></button>
+                        <button type="button" className={`tmBlock tmZoneA ${selectedZone === "ZONE A - A" ? "selected" : ""}`} onClick={() => setSelectedZone("ZONE A - A")}><strong>A</strong></button>
                         <span className="tmGateLabel tmGate1">GATE 1</span>
                       </div>
                       <div className="tmMapCenter tmRow1Center">
-                        <button type="button" className={`tmBlock tmStanding ${selectedZone === "STANDING" ? "selected" : ""}`} onClick={() => setSelectedZone("STANDING")}><strong>Roses</strong><small>(STANDING)</small></button>
-                        <button type="button" className={`tmBlock tmStanding ${selectedZone === "STANDING" ? "selected" : ""}`} onClick={() => setSelectedZone("STANDING")}><strong>Dandelion</strong><small>(STANDING)</small></button>
+                        <button type="button" className={`tmBlock tmStanding ${selectedZone === "Roses" ? "selected" : ""}`} onClick={() => setSelectedZone("Roses")}><strong>Roses</strong><small>(STANDING)</small></button>
+                        <button type="button" className={`tmBlock tmStanding ${selectedZone === "Dandelion" ? "selected" : ""}`} onClick={() => setSelectedZone("Dandelion")}><strong>Dandelion</strong><small>(STANDING)</small></button>
                       </div>
                       <div className="tmMapSide tmSideRight">
-                        <button type="button" className={`tmBlock tmZoneA ${selectedZone === "ZONE A" ? "selected" : ""}`} onClick={() => setSelectedZone("ZONE A")}><strong>I</strong></button>
+                        <button type="button" className={`tmBlock tmZoneA ${selectedZone === "ZONE A - I" ? "selected" : ""}`} onClick={() => setSelectedZone("ZONE A - I")}><strong>I</strong></button>
                         <span className="tmGateLabel tmGate4">GATE 4</span>
                       </div>
                     </div>
                     <div className="tmMapRow tmRow2">
-                      <div className="tmMapSide"><button type="button" className={`tmBlock tmZoneB ${selectedZone === "ZONE B" ? "selected" : ""}`} onClick={() => setSelectedZone("ZONE B")}><strong>B</strong></button></div>
+                      <div className="tmMapSide"><button type="button" className={`tmBlock tmZoneB ${selectedZone === "ZONE B - B" ? "selected" : ""}`} onClick={() => setSelectedZone("ZONE B - B")}><strong>B</strong></button></div>
                       <div className="tmMapCenter tmRow2Center">
-                        <button type="button" className={`tmBlock tmVip ${selectedZone === "VIP PACKAGE" ? "selected" : ""}`} onClick={() => setSelectedZone("VIP PACKAGE")}><strong>Flamin'</strong><small>(VIP SEATED)</small></button>
-                        <button type="button" className={`tmBlock tmVip ${selectedZone === "VIP PACKAGE" ? "selected" : ""}`} onClick={() => setSelectedZone("VIP PACKAGE")}><strong>Hot</strong><small>(VIP SEATED)</small></button>
-                        <button type="button" className={`tmBlock tmVip ${selectedZone === "VIP PACKAGE" ? "selected" : ""}`} onClick={() => setSelectedZone("VIP PACKAGE")}><strong>Lemon</strong><small>(VIP SEATED)</small></button>
+                        <button type="button" className={`tmBlock tmVip ${selectedZone === "Flamin'" ? "selected" : ""}`} onClick={() => setSelectedZone("Flamin'")}><strong>Flamin'</strong><small>(VIP SEATED)</small></button>
+                        <button type="button" className={`tmBlock tmVip ${selectedZone === "Hot" ? "selected" : ""}`} onClick={() => setSelectedZone("Hot")}><strong>Hot</strong><small>(VIP SEATED)</small></button>
+                        <button type="button" className={`tmBlock tmVip ${selectedZone === "Lemon" ? "selected" : ""}`} onClick={() => setSelectedZone("Lemon")}><strong>Lemon</strong><small>(VIP SEATED)</small></button>
                       </div>
-                      <div className="tmMapSide"><button type="button" className={`tmBlock tmZoneB ${selectedZone === "ZONE B" ? "selected" : ""}`} onClick={() => setSelectedZone("ZONE B")}><strong>H</strong></button></div>
+                      <div className="tmMapSide"><button type="button" className={`tmBlock tmZoneB ${selectedZone === "ZONE B - H" ? "selected" : ""}`} onClick={() => setSelectedZone("ZONE B - H")}><strong>H</strong></button></div>
                     </div>
                     <div className="tmMapRow tmRow3">
-                      <div className="tmMapSide"><button type="button" className={`tmBlock tmZoneC ${selectedZone === "ZONE C" ? "selected" : ""}`} onClick={() => setSelectedZone("ZONE C")}><strong>C</strong></button></div>
+                      <div className="tmMapSide"><button type="button" className={`tmBlock tmZoneC ${selectedZone === "ZONE C - C" ? "selected" : ""}`} onClick={() => setSelectedZone("ZONE C - C")}><strong>C</strong></button></div>
                       <div className="tmMapCenter tmRow3Center"><div className="tmControlBar">CONTROL</div><div className="tmBlockedLabel">BLOCKED</div></div>
-                      <div className="tmMapSide"><button type="button" className={`tmBlock tmZoneC ${selectedZone === "ZONE C" ? "selected" : ""}`} onClick={() => setSelectedZone("ZONE C")}><strong>G</strong></button></div>
+                      <div className="tmMapSide"><button type="button" className={`tmBlock tmZoneC ${selectedZone === "ZONE C - G" ? "selected" : ""}`} onClick={() => setSelectedZone("ZONE C - G")}><strong>G</strong></button></div>
                     </div>
                     <div className="tmMapRow tmRow4">
                       <span className="tmGateLabel tmGate2">GATE 2</span>
                       <div className="tmMapCenter tmRow4Center">
-                        <button type="button" className={`tmBlock tmZoneC ${selectedZone === "ZONE C" ? "selected" : ""}`} onClick={() => setSelectedZone("ZONE C")}><strong>D</strong></button>
-                        <button type="button" className={`tmBlock tmZoneC ${selectedZone === "ZONE C" ? "selected" : ""}`} onClick={() => setSelectedZone("ZONE C")}><strong>E</strong></button>
-                        <button type="button" className={`tmBlock tmZoneC ${selectedZone === "ZONE C" ? "selected" : ""}`} onClick={() => setSelectedZone("ZONE C")}><strong>F</strong></button>
+                        <button type="button" className={`tmBlock tmZoneC ${selectedZone === "ZONE C - D" ? "selected" : ""}`} onClick={() => setSelectedZone("ZONE C - D")}><strong>D</strong></button>
+                        <button type="button" className={`tmBlock tmZoneC ${selectedZone === "ZONE C - E" ? "selected" : ""}`} onClick={() => setSelectedZone("ZONE C - E")}><strong>E</strong></button>
+                        <button type="button" className={`tmBlock tmZoneC ${selectedZone === "ZONE C - F" ? "selected" : ""}`} onClick={() => setSelectedZone("ZONE C - F")}><strong>F</strong></button>
                       </div>
                       <span className="tmGateLabel tmGate3">GATE 3</span>
                     </div>
@@ -616,7 +670,7 @@ export default function CustomerBookingPage() {
                   <div className="tmSeatSection">
                     <div className="tmSeatHeader">
                       <div>
-                        <h4>Select seats in {selectedZone}</h4>
+                        <h4>Select seats in {selectedZoneLabel}</h4>
                         <span>Auto-refresh every 3 seconds{lastSeatRefresh ? ` · Updated ${lastSeatRefresh.toLocaleTimeString()}` : ""}</span>
                       </div>
                       <button className="button secondary compact" onClick={refreshSeatsNow} disabled={seatsRefreshing} type="button">
@@ -625,7 +679,7 @@ export default function CustomerBookingPage() {
                     </div>
                     <div className="tmSeatGrid">
                       {zoneSeats.map((seat) => (
-                        <button className={`seatButton ${seat.seat_status} ${selectedSeats.includes(seat.seat_id) ? "selected" : ""}`} key={seat.seat_id} onClick={() => toggleSeat(seat)} disabled={seat.seat_status !== "available" && !selectedSeats.includes(seat.seat_id)} title={`${seat.zone_name} ${seat.seat_no}`} type="button">{seat.seat_no}</button>
+                        <button className={`seatButton ${seat.seat_status} ${selectedSeats.includes(seat.seat_id) ? "selected" : ""}`} key={seat.seat_id} onClick={() => toggleSeat(seat)} disabled={seat.seat_status !== "available" && !selectedSeats.includes(seat.seat_id)} title={`${selectedZoneLabel} ${seat.seat_no}`} type="button">{seat.seat_no}</button>
                       ))}
                     </div>
                     <div className="seatLegend"><span><i className="available" /> Available</span><span><i className="selected" /> Selected</span><span><i className="pending" /> Reserved</span><span><i className="sold" /> Sold</span></div>
@@ -637,7 +691,7 @@ export default function CustomerBookingPage() {
                     <h4>Ticket Information</h4>
                     <div className="tmTicketMeta">
                       <div><span>Event:</span> <strong>{activeConcert?.title}</strong></div>
-                      <div><span>Seats:</span> <strong>{selectedSeatRows.map((s) => s.seat_no).join(", ")}</strong></div>
+                      <div><span>Seats:</span> <strong>{selectedSeatRows.map((s) => `${s.display_zone_name} · ${s.seat_no}`).join(", ")}</strong></div>
                       <div><span>Total:</span> <strong className="tmTotalPrice">฿{money(selectedTotal)}</strong></div>
                     </div>
                     <div className="tmTicketActions">
@@ -660,7 +714,7 @@ export default function CustomerBookingPage() {
                 <div className="tmCheckoutGrid">
                   <div className="tmOrderSummary">
                     <h4>Order Summary</h4>
-                    {selectedSeatRows.map((s) => (<div key={s.seat_id} className="tmOrderRow"><span>{s.zone_name} · {s.seat_no}</span><strong>฿{money(s.price)}</strong></div>))}
+                    {selectedSeatRows.map((s) => (<div key={s.seat_id} className="tmOrderRow"><span>{s.display_zone_name || s.zone_name} · {s.seat_no}</span><strong>฿{money(s.price)}</strong></div>))}
                     <div className="tmOrderRow tmOrderTotal"><span>Total</span><strong>฿{money(booking.total_amount || selectedTotal)}</strong></div>
                     <p className="tmHoldNote">Held until {new Date(booking.hold_expires_at).toLocaleTimeString()}</p>
                   </div>
@@ -716,7 +770,7 @@ export default function CustomerBookingPage() {
                       <h4>{activeConcert?.title}</h4>
                       <div className="tmTicketSeats">
                         {selectedSeatRows.map((s) => (
-                          <strong key={s.seat_id}>{s.zone_name} · {s.seat_no}</strong>
+                          <strong key={s.seat_id}>{s.display_zone_name || s.zone_name} · {s.seat_no}</strong>
                         ))}
                       </div>
                     </div>

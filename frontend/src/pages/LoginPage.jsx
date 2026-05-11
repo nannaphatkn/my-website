@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { api } from "../api";
 import { decodeToken, saveSession } from "../auth";
 
-const BRAND = "StageMaster";
+const BRAND = "NodNod Tickets";
 
 function EyeIcon({ open }) {
   return open ? (

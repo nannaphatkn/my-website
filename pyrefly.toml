@@ -1,0 +1,19 @@
+project-includes = ["backend/app/**/*.py"]
+project-excludes = [
+  "**/__pycache__",
+  "**/.venv",
+  "**/node_modules",
+  "frontend",
+]
+
+search-path = [
+  "backend",
+  "backend/app",
+]
+
+site-package-path = [
+  "backend/.venv/lib/python3.12/site-packages",
+]
+
+python-interpreter-path = "backend/.venv/bin/python"
+python-version = "3.12.13"

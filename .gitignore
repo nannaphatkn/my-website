@@ -1,8 +1,54 @@
+# macOS
 .DS_Store
+._*
+
+# Environment / secrets
 .env
+.env.*
+!.env.example
+
+# Python
 __pycache__/
 *.py[cod]
-node_modules/
-dist/
-.vite/
+*.pyo
+*.pyd
+.Python
+.venv/
+venv/
+env/
+backend/.venv/
 .pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Node / frontend
+node_modules/
+frontend/node_modules/
+dist/
+frontend/dist/
+.vite/
+frontend/.vite/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Build / cache / logs
+*.log
+logs/
+tmp/
+temp/
+.cache/
+
+# Docker / local database data
+postgres-data/
+pgdata/
+*.dump
+*.sql.gz
+
+# IDE local files
+.idea/
+*.swp
+*.swo

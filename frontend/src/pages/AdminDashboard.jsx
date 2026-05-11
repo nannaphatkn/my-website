@@ -1,5 +1,5 @@
 import { CalendarPlus, LogOut, Music2, RefreshCw, Trash2, Edit } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 
@@ -360,8 +360,22 @@ export default function AdminDashboard() {
     setAnalytics(analyticsData);
   }
 
+  const filtersRef = useRef(filters);
+  const showtimeRef = useRef(selectedShowtime);
+
   useEffect(() => {
-    loadAll(filters, selectedShowtime, true).catch((err) => setNotice(err.message));
+    filtersRef.current = filters;
+    showtimeRef.current = selectedShowtime;
+  }, [filters, selectedShowtime]);
+
+  useEffect(() => {
+    loadAll(filtersRef.current, showtimeRef.current, true).catch((err) => setNotice(err.message));
+    
+    const interval = setInterval(() => {
+      loadAll(filtersRef.current, showtimeRef.current, false).catch(console.error);
+    }, 3000);
+    
+    return () => clearInterval(interval);
   }, []);
 
   function updateField(field, value) {
