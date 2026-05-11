@@ -12,7 +12,7 @@ from fastapi import Depends, FastAPI, HTTPException, Query, status, File, Upload
 from fastapi.middleware.cors import CORSMiddleware
 
 from .database import db_session, wait_for_db
-from .dependencies import Principal, get_current_principal, require_admin, require_customer
+from .dependencies import Principal, get_current_principal, require_admin, require_admin_write, require_customer
 from .schemas import (
     ConcertCreate,
     ConcertUpdate,
@@ -77,9 +77,57 @@ def release_expired_locks() -> int:
             return released_seats
 
 
+def reconcile_seat_statuses() -> None:
+    """Repair seat status from ticket/booking truth so seats never reappear as open."""
+    with db_session() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                UPDATE seat s
+                SET seat_status = 'sold', locked_until = NULL
+                FROM ticket t
+                JOIN booking b ON b.booking_id = t.booking_id
+                WHERE t.seat_id = s.seat_id
+                  AND (t.ticket_status = 'sold' OR b.booking_status = 'paid')
+                  AND s.seat_status <> 'sold'
+                """
+            )
+            cur.execute(
+                """
+                UPDATE seat s
+                SET seat_status = 'pending', locked_until = b.hold_expires_at
+                FROM ticket t
+                JOIN booking b ON b.booking_id = t.booking_id
+                WHERE t.seat_id = s.seat_id
+                  AND t.ticket_status = 'held'
+                  AND b.booking_status = 'pending'
+                  AND b.hold_expires_at > NOW()
+                  AND s.seat_status <> 'sold'
+                  AND (s.seat_status <> 'pending' OR s.locked_until IS DISTINCT FROM b.hold_expires_at)
+                """
+            )
+            cur.execute(
+                """
+                UPDATE seat s
+                SET seat_status = 'available', locked_until = NULL
+                WHERE s.seat_status = 'pending'
+                  AND NOT EXISTS (
+                      SELECT 1
+                      FROM ticket t
+                      JOIN booking b ON b.booking_id = t.booking_id
+                      WHERE t.seat_id = s.seat_id
+                        AND t.ticket_status = 'held'
+                        AND b.booking_status = 'pending'
+                        AND b.hold_expires_at > NOW()
+                  )
+                """
+            )
+
+
 async def auto_release_loop() -> None:
     while True:
         await asyncio.to_thread(release_expired_locks)
+        await asyncio.to_thread(reconcile_seat_statuses)
         await asyncio.sleep(60)
 
 
@@ -87,6 +135,8 @@ async def auto_release_loop() -> None:
 async def startup_event() -> None:
     global release_task
     await asyncio.to_thread(wait_for_db)
+    await asyncio.to_thread(apply_schema_migrations)
+    await asyncio.to_thread(reconcile_seat_statuses)
     release_task = asyncio.create_task(auto_release_loop())
 
 
@@ -118,6 +168,79 @@ def _json_safe_rows(rows: list[dict]) -> list[dict]:
     return [{key: _decimal_to_float(value) for key, value in row.items()} for row in rows]
 
 
+def apply_schema_migrations() -> None:
+    """Keep older local Docker volumes compatible without deleting data."""
+    statements = [
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS username VARCHAR(80)",
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS date_of_birth DATE",
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS address TEXT",
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS status VARCHAR(20) NOT NULL DEFAULT 'active'",
+        "ALTER TABLE admin ADD COLUMN IF NOT EXISTS admin_role VARCHAR(50) NOT NULL DEFAULT 'admin'",
+        "ALTER TABLE venue ADD COLUMN IF NOT EXISTS hall VARCHAR(120)",
+        "ALTER TABLE zone ADD COLUMN IF NOT EXISTS venue_id INTEGER REFERENCES venue(venue_id) ON DELETE SET NULL",
+        "ALTER TABLE seat ADD COLUMN IF NOT EXISTS seat_row VARCHAR(20)",
+        "ALTER TABLE seat ADD COLUMN IF NOT EXISTS seat_type VARCHAR(80)",
+        "ALTER TABLE seat ADD COLUMN IF NOT EXISTS venue_id INTEGER REFERENCES venue(venue_id) ON DELETE SET NULL",
+        "ALTER TABLE payment ADD COLUMN IF NOT EXISTS user_id INTEGER REFERENCES users(user_id) ON DELETE SET NULL",
+        "ALTER TABLE payment ADD COLUMN IF NOT EXISTS banktype VARCHAR(100)",
+        "UPDATE users SET username = LOWER(SPLIT_PART(email, '@', 1)) || '-' || user_id WHERE username IS NULL",
+        "UPDATE users SET status = 'active' WHERE status IS NULL",
+        "UPDATE zone z SET venue_id = s.venue_id FROM showtime s WHERE z.showtime_id = s.showtime_id AND z.venue_id IS NULL",
+        "UPDATE seat st SET venue_id = z.venue_id, seat_type = z.zone_name FROM zone z WHERE st.zone_id = z.zone_id AND (st.venue_id IS NULL OR st.seat_type IS NULL)",
+        "UPDATE seat SET seat_row = SPLIT_PART(seat_no, '-', 1) WHERE seat_row IS NULL",
+    ]
+    safe_unique_indexes = [
+        "CREATE UNIQUE INDEX IF NOT EXISTS users_username_unique_idx ON users (LOWER(username)) WHERE username IS NOT NULL",
+        "CREATE UNIQUE INDEX IF NOT EXISTS users_phone_unique_idx ON users (phone) WHERE phone IS NOT NULL",
+        "CREATE UNIQUE INDEX IF NOT EXISTS payment_booking_unique_idx ON payment (booking_id) WHERE booking_id IS NOT NULL",
+        "CREATE UNIQUE INDEX IF NOT EXISTS seat_zone_seatno_unique_idx ON seat (zone_id, seat_no)",
+        "CREATE UNIQUE INDEX IF NOT EXISTS showtime_venue_date_time_unique_idx ON showtime (venue_id, show_date, show_time)",
+        "CREATE UNIQUE INDEX IF NOT EXISTS concert_title_unique_idx ON concert (title)",
+        "CREATE UNIQUE INDEX IF NOT EXISTS ticket_active_hold_seat_unique_idx ON ticket (seat_id) WHERE ticket_status = 'held'",
+    ]
+    constraints = [
+        ("users_email_format_check", "ALTER TABLE users ADD CONSTRAINT users_email_format_check CHECK (email LIKE '%@%.%') NOT VALID"),
+        ("admin_email_format_check", "ALTER TABLE admin ADD CONSTRAINT admin_email_format_check CHECK (email LIKE '%@%.%') NOT VALID"),
+        ("admin_role_check", "ALTER TABLE admin ADD CONSTRAINT admin_role_check CHECK (admin_role IN ('read', 'write', 'admin')) NOT VALID"),
+        ("showtime_show_date_valid_check", "ALTER TABLE showtime ADD CONSTRAINT showtime_show_date_valid_check CHECK (show_date >= DATE '2026-01-01') NOT VALID"),
+        ("zone_price_check", "ALTER TABLE zone ADD CONSTRAINT zone_price_check CHECK (price >= 0) NOT VALID"),
+        ("zone_total_seat_check", "ALTER TABLE zone ADD CONSTRAINT zone_total_seat_check CHECK (total_seat > 0) NOT VALID"),
+        ("booking_amount_check", "ALTER TABLE booking ADD CONSTRAINT booking_amount_check CHECK (booking_amount > 0) NOT VALID"),
+        ("booking_total_amount_check", "ALTER TABLE booking ADD CONSTRAINT booking_total_amount_check CHECK (total_amount >= 0) NOT VALID"),
+    ]
+    with db_session() as conn:
+        with conn.cursor() as cur:
+            for statement in statements:
+                cur.execute(statement)
+            for statement in safe_unique_indexes:
+                cur.execute(
+                    """
+                    DO $$
+                    BEGIN
+                        EXECUTE %s;
+                    EXCEPTION
+                        WHEN unique_violation THEN
+                            NULL;
+                    END $$;
+                    """,
+                    (statement,),
+                )
+            for name, statement in constraints:
+                cur.execute(
+                    """
+                    DO $$
+                    BEGIN
+                        IF NOT EXISTS (
+                            SELECT 1 FROM pg_constraint WHERE conname = %s
+                        ) THEN
+                            EXECUTE %s;
+                        END IF;
+                    END $$;
+                    """,
+                    (name, statement),
+                )
+
+
 @app.get("/api/health")
 def health_check():
     return {"status": "ok"}
@@ -130,14 +253,22 @@ def register_customer(payload: RegisterRequest):
             try:
                 cur.execute(
                     """
-                    INSERT INTO users (full_name, email, phone, password_hash)
-                    VALUES (%s, %s, %s, %s)
-                    RETURNING user_id, full_name, email
+                    INSERT INTO users (username, full_name, date_of_birth, address, email, phone, password_hash)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s)
+                    RETURNING user_id, username, full_name, email
                     """,
-                    (payload.full_name, payload.email.lower(), payload.phone, hash_password(payload.password)),
+                    (
+                        payload.username.lower(),
+                        payload.full_name,
+                        payload.date_of_birth,
+                        payload.address,
+                        payload.email.lower(),
+                        payload.phone,
+                        hash_password(payload.password),
+                    ),
                 )
             except psycopg2.errors.UniqueViolation as exc:
-                raise HTTPException(status_code=409, detail="Email is already registered") from exc
+                raise HTTPException(status_code=409, detail="Username, email, or phone is already registered") from exc
             user = cur.fetchone()
     return user
 
@@ -149,11 +280,11 @@ def login(payload: LoginRequest):
         with conn.cursor() as cur:
             cur.execute(
                 """
-                SELECT user_id AS id, full_name AS profile_name, email, password_hash
+                SELECT user_id AS id, full_name AS profile_name, email, username, password_hash
                 FROM users
-                WHERE LOWER(email) = %s
+                WHERE LOWER(email) = %s OR LOWER(username) = %s
                 """,
-                (identifier,),
+                (identifier, identifier),
             )
             user = cur.fetchone()
             if user and verify_password(payload.password, user["password_hash"]):
@@ -179,7 +310,7 @@ def login(payload: LoginRequest):
 
             cur.execute(
                 """
-                SELECT admin_id AS id, display_name AS profile_name, email, username, password_hash
+                SELECT admin_id AS id, display_name AS profile_name, email, username, password_hash, admin_role
                 FROM admin
                 WHERE LOWER(email) = %s OR LOWER(username) = %s
                 """,
@@ -187,11 +318,12 @@ def login(payload: LoginRequest):
             )
             admin = cur.fetchone()
             if admin and verify_password(payload.password, admin["password_hash"]):
-                token = create_access_token(admin["id"], "admin", admin["profile_name"])
+                token = create_access_token(admin["id"], "admin", admin["profile_name"], admin["admin_role"])
                 return {
                     "access_token": token,
                     "token_type": "bearer",
                     "role": "admin",
+                    "admin_role": admin["admin_role"],
                     "profile_name": admin["profile_name"],
                 }
 
@@ -218,6 +350,7 @@ def logout(principal: Principal = Depends(get_current_principal)):
 @app.get("/api/concerts")
 def list_concerts():
     release_expired_locks()
+    reconcile_seat_statuses()
     with db_session() as conn:
         with conn.cursor() as cur:
             cur.execute(
@@ -261,6 +394,7 @@ def list_concerts():
 @app.get("/api/showtimes/{showtime_id}/seats")
 def list_seats(showtime_id: int):
     release_expired_locks()
+    reconcile_seat_statuses()
     with db_session() as conn:
         with conn.cursor() as cur:
             cur.execute(
@@ -576,11 +710,18 @@ def confirm_payment(
             transaction_ref = f"PAY-{uuid.uuid4().hex[:18].upper()}"
             cur.execute(
                 """
-                INSERT INTO payment (booking_id, amount, payment_method, payment_status, transaction_ref)
-                VALUES (%s, %s, %s, 'completed', %s)
+                INSERT INTO payment (booking_id, user_id, amount, payment_method, banktype, payment_status, transaction_ref)
+                VALUES (%s, %s, %s, %s, %s, 'completed', %s)
                 RETURNING payment_id, paid_at, transaction_ref
                 """,
-                (booking["booking_id"], booking["total_amount"], payload.payment_method, transaction_ref),
+                (
+                    booking["booking_id"],
+                    booking["user_id"],
+                    booking["total_amount"],
+                    payload.payment_method,
+                    payload.payment_method,
+                    transaction_ref,
+                ),
             )
             payment = cur.fetchone()
             cur.execute(
@@ -820,7 +961,7 @@ def admin_inventory(showtime_id: int | None = None, _: Principal = Depends(requi
 
 
 @app.patch("/api/admin/zones/{zone_id}")
-def update_zone(zone_id: int, payload: ZoneUpdate, _: Principal = Depends(require_admin)):
+def update_zone(zone_id: int, payload: ZoneUpdate, _: Principal = Depends(require_admin_write)):
     if payload.price is None and payload.total_seat is None:
         raise HTTPException(status_code=400, detail="Provide price or total_seat to update")
 
@@ -828,7 +969,7 @@ def update_zone(zone_id: int, payload: ZoneUpdate, _: Principal = Depends(requir
         with conn.cursor() as cur:
             cur.execute(
                 """
-                SELECT z.zone_id, z.zone_name, z.price, z.total_seat, COUNT(s.seat_id) AS actual_seats
+                SELECT z.zone_id, z.zone_name, z.venue_id, z.price, z.total_seat, COUNT(s.seat_id) AS actual_seats
                 FROM zone z
                 LEFT JOIN seat s ON s.zone_id = z.zone_id
                 WHERE z.zone_id = %s
@@ -845,8 +986,18 @@ def update_zone(zone_id: int, payload: ZoneUpdate, _: Principal = Depends(requir
             actual_seats = int(zone["actual_seats"])
             if target_total > actual_seats:
                 prefix = _seat_prefix(zone["zone_name"])
-                seat_rows = [(zone_id, f"{prefix}-{index:03d}") for index in range(actual_seats + 1, target_total + 1)]
-                cur.executemany("INSERT INTO seat (zone_id, seat_no) VALUES (%s, %s) ON CONFLICT DO NOTHING", seat_rows)
+                seat_rows = [
+                    (zone_id, f"{prefix}-{index:03d}", prefix, zone["zone_name"], zone["venue_id"])
+                    for index in range(actual_seats + 1, target_total + 1)
+                ]
+                cur.executemany(
+                    """
+                    INSERT INTO seat (zone_id, seat_no, seat_row, seat_type, venue_id)
+                    VALUES (%s, %s, %s, %s, %s)
+                    ON CONFLICT DO NOTHING
+                    """,
+                    seat_rows,
+                )
             elif target_total < actual_seats:
                 seats_to_remove = actual_seats - target_total
                 cur.execute(
@@ -923,7 +1074,7 @@ def cleanup_candidates(_: Principal = Depends(require_admin)):
 
 
 @app.delete("/api/admin/bookings/{booking_id}")
-def delete_stale_booking(booking_id: int, _: Principal = Depends(require_admin)):
+def delete_stale_booking(booking_id: int, _: Principal = Depends(require_admin_write)):
     with db_session() as conn:
         with conn.cursor() as cur:
             cur.execute(
@@ -989,21 +1140,28 @@ def loyalty_report(_: Principal = Depends(require_admin)):
 
 
 @app.post("/api/admin/concerts", status_code=status.HTTP_201_CREATED)
-def create_concert(payload: ConcertCreate, principal: Principal = Depends(require_admin)):
+def create_concert(payload: ConcertCreate, principal: Principal = Depends(require_admin_write)):
     try:
         with db_session() as conn:
             with conn.cursor() as cur:
                 cur.execute(
                     """
-                    INSERT INTO venue (venue_name, address, city, capacity)
-                    VALUES (%s, %s, %s, %s)
+                    INSERT INTO venue (venue_name, address, city, hall, capacity)
+                    VALUES (%s, %s, %s, %s, %s)
                     ON CONFLICT (venue_name, city)
                     DO UPDATE SET
                         address = COALESCE(EXCLUDED.address, venue.address),
+                        hall = COALESCE(EXCLUDED.hall, venue.hall),
                         capacity = COALESCE(EXCLUDED.capacity, venue.capacity)
                     RETURNING venue_id
                     """,
-                    (payload.venue_name, payload.venue_address, payload.venue_city, payload.venue_capacity),
+                    (
+                        payload.venue_name,
+                        payload.venue_address,
+                        payload.venue_city,
+                        payload.venue_hall,
+                        payload.venue_capacity,
+                    ),
                 )
                 venue = cur.fetchone()
 
@@ -1047,18 +1205,24 @@ def create_concert(payload: ConcertCreate, principal: Principal = Depends(requir
                 for zone in payload.zones:
                     cur.execute(
                         """
-                        INSERT INTO zone (showtime_id, zone_name, price, total_seat)
-                        VALUES (%s, %s, %s, %s)
+                        INSERT INTO zone (showtime_id, venue_id, zone_name, price, total_seat)
+                        VALUES (%s, %s, %s, %s, %s)
                         RETURNING zone_id
                         """,
-                        (showtime["showtime_id"], zone.zone_name, zone.price, zone.total_seat),
+                        (showtime["showtime_id"], venue["venue_id"], zone.zone_name, zone.price, zone.total_seat),
                     )
                     zone_row = cur.fetchone()
                     created_zones.append(zone_row["zone_id"])
                     prefix = _seat_prefix(zone.zone_name)
-                    seat_rows = [(zone_row["zone_id"], f"{prefix}-{index:03d}") for index in range(1, zone.total_seat + 1)]
+                    seat_rows = [
+                        (zone_row["zone_id"], f"{prefix}-{index:03d}", prefix, zone.zone_name, venue["venue_id"])
+                        for index in range(1, zone.total_seat + 1)
+                    ]
                     cur.executemany(
-                        "INSERT INTO seat (zone_id, seat_no) VALUES (%s, %s)",
+                        """
+                        INSERT INTO seat (zone_id, seat_no, seat_row, seat_type, venue_id)
+                        VALUES (%s, %s, %s, %s, %s)
+                        """,
                         seat_rows,
                     )
     except psycopg2.errors.UniqueViolation as exc:
@@ -1068,7 +1232,7 @@ def create_concert(payload: ConcertCreate, principal: Principal = Depends(requir
 
 
 @app.post("/api/admin/upload-poster")
-def upload_poster(file: UploadFile = File(...), _: Principal = Depends(require_admin)):
+def upload_poster(file: UploadFile = File(...), _: Principal = Depends(require_admin_write)):
     ext = file.filename.split(".")[-1] if "." in file.filename else "jpg"
     filename = f"{uuid.uuid4().hex}.{ext}"
     os.makedirs("/app/posters", exist_ok=True)
@@ -1079,7 +1243,7 @@ def upload_poster(file: UploadFile = File(...), _: Principal = Depends(require_a
 
 
 @app.patch("/api/admin/concerts/{concert_id}")
-def update_concert(concert_id: int, payload: ConcertUpdate, _: Principal = Depends(require_admin)):
+def update_concert(concert_id: int, payload: ConcertUpdate, _: Principal = Depends(require_admin_write)):
     with db_session() as conn:
         with conn.cursor() as cur:
             cur.execute(
@@ -1103,7 +1267,7 @@ def update_concert(concert_id: int, payload: ConcertUpdate, _: Principal = Depen
 
 
 @app.delete("/api/admin/concerts/{concert_id}")
-def delete_concert(concert_id: int, _: Principal = Depends(require_admin)):
+def delete_concert(concert_id: int, _: Principal = Depends(require_admin_write)):
     with db_session() as conn:
         with conn.cursor() as cur:
             cur.execute("DELETE FROM concert WHERE concert_id = %s RETURNING concert_id", (concert_id,))

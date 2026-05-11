@@ -14,6 +14,7 @@ class Principal:
     id: int
     role: str
     name: str
+    admin_role: str | None = None
 
 
 def get_current_principal(token: str = Depends(oauth2_scheme)) -> Principal:
@@ -22,7 +23,12 @@ def get_current_principal(token: str = Depends(oauth2_scheme)) -> Principal:
         role = payload.get("role")
         if role not in {"customer", "admin"}:
             raise ValueError("Invalid role")
-        return Principal(id=int(payload["sub"]), role=role, name=payload.get("name", ""))
+        return Principal(
+            id=int(payload["sub"]),
+            role=role,
+            name=payload.get("name", ""),
+            admin_role=payload.get("admin_role") if role == "admin" else None,
+        )
     except (KeyError, TypeError, ValueError) as exc:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -34,6 +40,12 @@ def get_current_principal(token: str = Depends(oauth2_scheme)) -> Principal:
 def require_admin(principal: Principal = Depends(get_current_principal)) -> Principal:
     if principal.role != "admin":
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin access required")
+    return principal
+
+
+def require_admin_write(principal: Principal = Depends(require_admin)) -> Principal:
+    if principal.admin_role not in {None, "write", "admin"}:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin write access required")
     return principal
 
 

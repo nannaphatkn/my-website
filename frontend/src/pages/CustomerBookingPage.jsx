@@ -197,6 +197,15 @@ export default function CustomerBookingPage() {
   const [searchQ, setSearchQ] = useState("");
   const [payment, setPayment] = useState({ method: "card", cardName: session?.name || "", cardNumber: "", expiry: "", cvc: "" });
 
+  useEffect(() => {
+    setSelectedSeats([]);
+    setSelectedZone(null);
+    setBooking(null);
+    setPaymentRef("");
+    setTicketReceipt(null);
+    setSeatData({ zones: [], seats: [] });
+  }, [session?.id]);
+
   const grouped = useMemo(() => groupConcerts(concerts), [concerts]);
   const bestSelling = useMemo(
     () => [...grouped].sort((a, b) => Number(b.sold_seats || 0) - Number(a.sold_seats || 0) || Number(b.booking_rate || 0) - Number(a.booking_rate || 0)),
@@ -222,7 +231,7 @@ export default function CustomerBookingPage() {
     setSeatData(data);
     setLastSeatRefresh(new Date());
     if (options.keepSelection) {
-      const stillHeldOrOpen = new Set(data.seats.filter((seat) => ["available", "pending"].includes(seat.seat_status)).map((seat) => seat.seat_id));
+      const stillHeldOrOpen = new Set(data.seats.filter((seat) => seat.seat_status !== "sold").map((seat) => seat.seat_id));
       setSelectedSeats((current) => current.filter((seatId) => stillHeldOrOpen.has(seatId)));
     }
   }
@@ -417,6 +426,78 @@ export default function CustomerBookingPage() {
     printWindow.document.write(html);
     printWindow.document.close();
   }
+
+  function downloadHistoryTicketPdf(row) {
+    const paymentMethod = PAYMENT_METHODS.find((method) => method.id === row.payment_method)?.label || row.payment_method || "Confirmed";
+    const reference = row.transaction_ref || "CONFIRMED";
+    const ticketNo = `NN-${row.booking_id || "000"}-${reference.slice(-6)}`;
+    const seats = row.seats || "Seat confirmed";
+    const paidAt = row.paid_at ? new Date(row.paid_at).toLocaleString() : new Date(row.created_at).toLocaleString();
+    const html = `<!doctype html>
+      <html>
+        <head>
+          <title>NodNod Ticket ${escapeHtml(ticketNo)}</title>
+          <style>
+            @page { size: A4; margin: 18mm; }
+            * { box-sizing: border-box; }
+            body { margin: 0; font-family: Arial, sans-serif; color: #221a15; background: #f8f0df; }
+            .ticket { max-width: 760px; margin: 0 auto; border: 2px solid #221a15; background: #fff8e8; }
+            .top { display: flex; justify-content: space-between; gap: 24px; padding: 28px; border-bottom: 2px dashed #221a15; background: #2ed8c3; color: #10101f; }
+            .brand { letter-spacing: 4px; font-size: 12px; font-weight: 900; text-transform: uppercase; }
+            h1 { margin: 8px 0 0; font-size: 30px; line-height: 1.08; }
+            .admit { min-width: 150px; text-align: center; border: 2px solid #10101f; padding: 14px; font-weight: 900; text-transform: uppercase; }
+            .body { padding: 28px; }
+            .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 22px; }
+            .box { border: 1px solid #d0b98d; padding: 13px; background: #fffdf5; }
+            .box span { display: block; color: #8a6d43; font-size: 11px; font-weight: 900; letter-spacing: 1.5px; text-transform: uppercase; margin-bottom: 6px; }
+            .box strong { font-size: 16px; }
+            .seats { font-size: 22px; font-weight: 900; color: #d94486; }
+            .footer { display: flex; justify-content: space-between; align-items: end; gap: 18px; margin-top: 28px; padding-top: 18px; border-top: 2px dashed #d0b98d; }
+            .qr { width: 116px; height: 116px; display: grid; place-items: center; border: 8px solid #221a15; font-weight: 900; font-size: 28px; }
+            .small { color: #6f5b3e; font-size: 12px; line-height: 1.6; }
+          </style>
+        </head>
+        <body>
+          <main class="ticket">
+            <section class="top">
+              <div>
+                <div class="brand">NodNod Tickets</div>
+                <h1>${escapeHtml(row.concert_title || "Concert Ticket")}</h1>
+              </div>
+              <div class="admit">Admit<br />${String(seats).split(",").filter(Boolean).length || 1}</div>
+            </section>
+            <section class="body">
+              <div class="seats">${escapeHtml(seats)}</div>
+              <div class="grid">
+                <div class="box"><span>Ticket No.</span><strong>${escapeHtml(ticketNo)}</strong></div>
+                <div class="box"><span>Booking</span><strong>#${escapeHtml(row.booking_id)}</strong></div>
+                <div class="box"><span>Date</span><strong>${escapeHtml(dateFmt(row.show_date))}</strong></div>
+                <div class="box"><span>Time</span><strong>${escapeHtml(String(row.show_time || "").slice(0, 5))}</strong></div>
+                <div class="box"><span>Venue</span><strong>${escapeHtml(row.venue_name || "")}</strong></div>
+                <div class="box"><span>Payment</span><strong>${escapeHtml(paymentMethod)}</strong></div>
+                <div class="box"><span>Paid At</span><strong>${escapeHtml(paidAt)}</strong></div>
+                <div class="box"><span>Total</span><strong>THB ${escapeHtml(money(row.total_amount))}</strong></div>
+              </div>
+              <div class="footer">
+                <div class="small">
+                  Payment Ref: ${escapeHtml(reference)}<br />
+                  Present this ticket at the entrance. Demo ticket generated by NodNod.
+                </div>
+                <div class="qr">NN</div>
+              </div>
+            </section>
+          </main>
+          <script>window.onload = () => { window.print(); };</script>
+        </body>
+      </html>`;
+    const printWindow = window.open("", "_blank");
+    if (!printWindow) {
+      setNotice("Please allow popups, then click Download PDF again.");
+      return;
+    }
+    printWindow.document.write(html);
+    printWindow.document.close();
+  }
   function resetFlow() { setStep("browse"); setSelectedSeats([]); setSelectedZone(null); setBooking(null); setPaymentRef(""); setTicketReceipt(null); setSelectedShowtime(null); }
 
   return (
@@ -516,6 +597,13 @@ export default function CustomerBookingPage() {
                             <div><span>Reference</span><strong>{row.transaction_ref}</strong></div>
                             <div><span>Booked</span><strong>{new Date(row.created_at).toLocaleString()}</strong></div>
                           </div>
+                          {row.booking_status === "paid" && (
+                            <div className="tmHistoryActions">
+                              <button className="button primary compact" onClick={() => downloadHistoryTicketPdf(row)} type="button">
+                                <Download size={16} /> Download Ticket
+                              </button>
+                            </div>
+                          )}
                         </div>
                       </article>
                     ))}

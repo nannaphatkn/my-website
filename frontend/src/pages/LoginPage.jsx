@@ -26,13 +26,31 @@ function EyeIcon({ open }) {
 
 export default function LoginPage() {
   const navigate = useNavigate();
+  const [mode, setMode] = useState("login");
   const [form, setForm] = useState({ identifier: "", password: "", remember: false });
+  const [registerForm, setRegisterForm] = useState({
+    username: "",
+    full_name: "",
+    date_of_birth: "",
+    address: "",
+    email: "",
+    phone: "",
+    password: "",
+    confirmPassword: "",
+  });
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
   const [showPw, setShowPw] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
 
   const set = k => e => setForm(f => ({ ...f, [k]: e.target.value }));
+  const setRegister = k => e => setRegisterForm(f => ({ ...f, [k]: e.target.value }));
+
+  const finishLogin = (response) => {
+    const payload = decodeToken(response.access_token);
+    saveSession(response);
+    navigate(payload?.role === "admin" ? "/admin" : "/concerts", { replace: true });
+  };
 
   const handleSubmit = async (ev) => {
     ev.preventDefault();
@@ -43,12 +61,55 @@ export default function LoginPage() {
     setErrors({}); setErrorMessage(""); setLoading(true);
     try {
       const response = await api.login({ identifier: form.identifier, password: form.password });
-      const payload = decodeToken(response.access_token);
-      saveSession(response);
-      navigate(payload?.role === "admin" ? "/admin" : "/concerts", { replace: true });
+      finishLogin(response);
     } catch (err) {
       setErrorMessage(err.message || "Invalid credentials");
     } finally { setLoading(false); }
+  };
+
+  const handleRegister = async (ev) => {
+    ev.preventDefault();
+    const e = {};
+    ["username", "full_name", "email", "password"].forEach((field) => {
+      if (!registerForm[field]) e[field] = true;
+    });
+    if (registerForm.password && registerForm.password.length < 8) {
+      setErrors({ ...e, password: true });
+      setErrorMessage("Password must be at least 8 characters.");
+      return;
+    }
+    if (registerForm.password !== registerForm.confirmPassword) {
+      setErrors({ ...e, confirmPassword: true });
+      setErrorMessage("Password confirmation does not match.");
+      return;
+    }
+    if (Object.keys(e).length) {
+      setErrors(e);
+      setErrorMessage("Please fill in required fields.");
+      return;
+    }
+
+    setErrors({});
+    setErrorMessage("");
+    setLoading(true);
+    try {
+      const payload = {
+        username: registerForm.username,
+        full_name: registerForm.full_name,
+        date_of_birth: registerForm.date_of_birth || null,
+        address: registerForm.address || null,
+        email: registerForm.email,
+        phone: registerForm.phone || null,
+        password: registerForm.password,
+      };
+      await api.register(payload);
+      const response = await api.login({ identifier: registerForm.username, password: registerForm.password });
+      finishLogin(response);
+    } catch (err) {
+      setErrorMessage(err.message || "Could not create account");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -82,8 +143,12 @@ export default function LoginPage() {
               <div><strong style={{color:'#fff',fontSize:16,letterSpacing:1}}>{BRAND}</strong><br/><span style={{color:'rgba(255,255,255,.35)',fontSize:11}}>Concert Ticket Platform</span></div>
             </div>
 
-            <h1 style={{color:'#fff',fontSize:28,fontWeight:700,margin:'0 0 4px'}}>Welcome Back 👋</h1>
-            <p style={{color:'rgba(255,255,255,.4)',fontSize:14,margin:'0 0 28px'}}>Sign in to your account to continue</p>
+            <h1 style={{color:'#fff',fontSize:28,fontWeight:700,margin:'0 0 4px'}}>
+              {mode === "login" ? "Welcome Back 👋" : "Create Account"}
+            </h1>
+            <p style={{color:'rgba(255,255,255,.4)',fontSize:14,margin:'0 0 28px'}}>
+              {mode === "login" ? "Sign in to your account to continue" : "Register your customer profile before booking"}
+            </p>
 
             {errorMessage && (
               <div style={{marginBottom:16,padding:'10px 14px',borderRadius:10,background:'rgba(239,68,68,.1)',border:'1px solid rgba(239,68,68,.2)',color:'#f87171',fontSize:13,display:'flex',alignItems:'center',gap:8}}>
@@ -91,13 +156,53 @@ export default function LoginPage() {
               </div>
             )}
 
-            <form onSubmit={handleSubmit} style={{display:'flex',flexDirection:'column',gap:18}}>
+            <form onSubmit={mode === "login" ? handleSubmit : handleRegister} style={{display:'flex',flexDirection:'column',gap:18}}>
+              {mode === "register" && (
+                <>
+                  <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
+                    <label>
+                      <span style={{display:'block',color:'rgba(255,255,255,.5)',fontSize:11,fontWeight:600,textTransform:'uppercase',letterSpacing:1,marginBottom:6}}>Username *</span>
+                      <input value={registerForm.username} onChange={setRegister("username")} placeholder="nodnodfan"
+                        style={{width:'100%',padding:'12px 14px',borderRadius:10,border:`1px solid ${errors.username?'rgba(239,68,68,.4)':'rgba(255,255,255,.08)'}`,background:'rgba(255,255,255,.04)',color:'#fff',fontSize:14,outline:'none'}} />
+                    </label>
+                    <label>
+                      <span style={{display:'block',color:'rgba(255,255,255,.5)',fontSize:11,fontWeight:600,textTransform:'uppercase',letterSpacing:1,marginBottom:6}}>Full Name *</span>
+                      <input value={registerForm.full_name} onChange={setRegister("full_name")} placeholder="Your name"
+                        style={{width:'100%',padding:'12px 14px',borderRadius:10,border:`1px solid ${errors.full_name?'rgba(239,68,68,.4)':'rgba(255,255,255,.08)'}`,background:'rgba(255,255,255,.04)',color:'#fff',fontSize:14,outline:'none'}} />
+                    </label>
+                  </div>
+                  <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
+                    <label>
+                      <span style={{display:'block',color:'rgba(255,255,255,.5)',fontSize:11,fontWeight:600,textTransform:'uppercase',letterSpacing:1,marginBottom:6}}>Date of Birth</span>
+                      <input type="date" value={registerForm.date_of_birth} onChange={setRegister("date_of_birth")}
+                        style={{width:'100%',padding:'12px 14px',borderRadius:10,border:'1px solid rgba(255,255,255,.08)',background:'rgba(255,255,255,.04)',color:'#fff',fontSize:14,outline:'none'}} />
+                    </label>
+                    <label>
+                      <span style={{display:'block',color:'rgba(255,255,255,.5)',fontSize:11,fontWeight:600,textTransform:'uppercase',letterSpacing:1,marginBottom:6}}>Phone</span>
+                      <input value={registerForm.phone} onChange={setRegister("phone")} placeholder="08x-xxx-xxxx"
+                        style={{width:'100%',padding:'12px 14px',borderRadius:10,border:'1px solid rgba(255,255,255,.08)',background:'rgba(255,255,255,.04)',color:'#fff',fontSize:14,outline:'none'}} />
+                    </label>
+                  </div>
+                  <label>
+                    <span style={{display:'block',color:'rgba(255,255,255,.5)',fontSize:11,fontWeight:600,textTransform:'uppercase',letterSpacing:1,marginBottom:6}}>Address</span>
+                    <input value={registerForm.address} onChange={setRegister("address")} placeholder="Address"
+                      style={{width:'100%',padding:'12px 14px',borderRadius:10,border:'1px solid rgba(255,255,255,.08)',background:'rgba(255,255,255,.04)',color:'#fff',fontSize:14,outline:'none'}} />
+                  </label>
+                </>
+              )}
+
               <div>
-                <label style={{display:'block',color:'rgba(255,255,255,.5)',fontSize:11,fontWeight:600,textTransform:'uppercase',letterSpacing:1,marginBottom:6}}>Email or Username</label>
+                <label style={{display:'block',color:'rgba(255,255,255,.5)',fontSize:11,fontWeight:600,textTransform:'uppercase',letterSpacing:1,marginBottom:6}}>
+                  {mode === "login" ? "Email or Username" : "Email *"}
+                </label>
                 <div style={{position:'relative'}}>
                   <span style={{position:'absolute',left:12,top:'50%',transform:'translateY(-50%)',color:'rgba(255,255,255,.25)',fontSize:16}}>✉</span>
-                  <input value={form.identifier} onChange={set("identifier")} placeholder="you@email.com"
-                    style={{width:'100%',padding:'12px 14px 12px 38px',borderRadius:10,border:`1px solid ${errors.identifier?'rgba(239,68,68,.4)':'rgba(255,255,255,.08)'}`,background:'rgba(255,255,255,.04)',color:'#fff',fontSize:14,outline:'none'}} />
+                  <input
+                    value={mode === "login" ? form.identifier : registerForm.email}
+                    onChange={mode === "login" ? set("identifier") : setRegister("email")}
+                    placeholder="you@email.com"
+                    style={{width:'100%',padding:'12px 14px 12px 38px',borderRadius:10,border:`1px solid ${(errors.identifier || errors.email)?'rgba(239,68,68,.4)':'rgba(255,255,255,.08)'}`,background:'rgba(255,255,255,.04)',color:'#fff',fontSize:14,outline:'none'}}
+                  />
                 </div>
               </div>
 
@@ -105,7 +210,7 @@ export default function LoginPage() {
                 <label style={{display:'block',color:'rgba(255,255,255,.5)',fontSize:11,fontWeight:600,textTransform:'uppercase',letterSpacing:1,marginBottom:6}}>Password</label>
                 <div style={{position:'relative'}}>
                   <span style={{position:'absolute',left:12,top:'50%',transform:'translateY(-50%)',color:'rgba(255,255,255,.25)',fontSize:16}}>🔒</span>
-                  <input type={showPw?'text':'password'} value={form.password} onChange={set("password")} placeholder="Your password"
+                  <input type={showPw?'text':'password'} value={mode === "login" ? form.password : registerForm.password} onChange={mode === "login" ? set("password") : setRegister("password")} placeholder="Your password"
                     style={{width:'100%',padding:'12px 42px 12px 38px',borderRadius:10,border:`1px solid ${errors.password?'rgba(239,68,68,.4)':'rgba(255,255,255,.08)'}`,background:'rgba(255,255,255,.04)',color:'#fff',fontSize:14,outline:'none'}} />
                   <button type="button" onClick={()=>setShowPw(s=>!s)} style={{position:'absolute',right:12,top:'50%',transform:'translateY(-50%)',background:'none',border:'none',color:'rgba(255,255,255,.3)',cursor:'pointer'}}>
                     <EyeIcon open={showPw}/>
@@ -113,13 +218,21 @@ export default function LoginPage() {
                 </div>
               </div>
 
-              <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+              {mode === "register" && (
+                <div>
+                  <label style={{display:'block',color:'rgba(255,255,255,.5)',fontSize:11,fontWeight:600,textTransform:'uppercase',letterSpacing:1,marginBottom:6}}>Confirm Password *</label>
+                  <input type={showPw?'text':'password'} value={registerForm.confirmPassword} onChange={setRegister("confirmPassword")} placeholder="Repeat password"
+                    style={{width:'100%',padding:'12px 14px',borderRadius:10,border:`1px solid ${errors.confirmPassword?'rgba(239,68,68,.4)':'rgba(255,255,255,.08)'}`,background:'rgba(255,255,255,.04)',color:'#fff',fontSize:14,outline:'none'}} />
+                </div>
+              )}
+
+              {mode === "login" && <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
                 <label style={{display:'flex',alignItems:'center',gap:6,color:'rgba(255,255,255,.4)',fontSize:12,cursor:'pointer'}}>
                   <input type="checkbox" checked={form.remember} onChange={e=>setForm(f=>({...f,remember:e.target.checked}))} style={{accentColor:'#a855f7'}} />
                   Remember me
                 </label>
                 <button type="button" style={{background:'none',border:'none',color:'#a855f7',fontSize:12,cursor:'pointer'}}>Forgot Password?</button>
-              </div>
+              </div>}
 
               <button type="submit" disabled={loading} style={{
                 width:'100%',padding:'13px',borderRadius:10,border:'none',
@@ -128,7 +241,7 @@ export default function LoginPage() {
                 boxShadow:'0 4px 20px rgba(168,85,247,.3)',
                 transition:'transform .15s,box-shadow .15s'
               }}>
-                {loading ? "Signing in..." : "Sign In"}
+                {loading ? (mode === "login" ? "Signing in..." : "Creating account...") : (mode === "login" ? "Sign In" : "Create Customer Account")}
               </button>
 
               <div style={{display:'flex',alignItems:'center',gap:12,margin:'4px 0'}}>
@@ -137,14 +250,17 @@ export default function LoginPage() {
                 <div style={{flex:1,height:1,background:'rgba(255,255,255,.06)'}}/>
               </div>
 
-              <button type="button" style={{
+              <button type="button" onClick={() => {
+                setMode(mode === "login" ? "register" : "login");
+                setErrors({});
+                setErrorMessage("");
+              }} style={{
                 width:'100%',padding:'12px',borderRadius:10,
                 border:'1px solid rgba(255,255,255,.08)',background:'rgba(255,255,255,.03)',
                 color:'rgba(255,255,255,.6)',fontSize:13,fontWeight:500,cursor:'pointer',
                 display:'flex',alignItems:'center',justifyContent:'center',gap:8
               }}>
-                <svg style={{width:16,height:16}} viewBox="0 0 24 24"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
-                Sign In with Google
+                {mode === "login" ? "Create a new customer account" : "Already have an account? Sign in"}
               </button>
             </form>
           </div>

@@ -20,7 +20,7 @@ Seed logins:
 - Customer: `customer@example.com` / `customer123`
 - Admin: `admin@example.com` or `admin` / `admin123`
 //////
-- System: 'PostgreSQL'
+- System: PostgreSQL
 - Server: db
 - Username: ticket_user
 - Password: ticket_password

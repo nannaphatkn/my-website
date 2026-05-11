@@ -2478,6 +2478,12 @@ label {
   white-space: nowrap;
 }
 
+.tmHistoryActions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 12px;
+}
+
 .tmHistoryEmpty {
   display: grid;
   min-height: 240px;
@@ -3647,6 +3653,14 @@ label {
 .statBadge{font-size:.7rem;font-weight:700;padding:3px 8px;border-radius:20px;position:absolute;top:14px;right:14px}
 .statBadge.up{color:#22c55e;background:rgba(34,197,94,.12)}
 .statBadge.down{color:#ef4444;background:rgba(239,68,68,.12)}
+.paymentInsightCard{display:grid;grid-template-columns:minmax(260px,.9fr) minmax(280px,1.1fr);gap:18px;align-items:center;background:linear-gradient(135deg,rgba(168,85,247,.12),rgba(32,211,245,.06));border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:20px;margin-top:16px}
+.paymentInsightHero{display:flex;align-items:center;gap:16px;min-width:0}
+.paymentInsightIcon{width:54px;height:54px;border-radius:14px;display:grid;place-items:center;background:rgba(32,211,245,.16);font-size:1.45rem;flex-shrink:0}
+.paymentInsightHero small{display:block;color:rgba(255,255,255,.45);font-size:.72rem;text-transform:uppercase;font-weight:800;letter-spacing:.6px}
+.paymentInsightHero strong{display:block;color:#fff;font-size:1.5rem;margin-top:4px;line-height:1.15}
+.paymentInsightHero p{margin:6px 0 0;color:rgba(255,255,255,.52);font-size:.86rem;font-weight:700}
+.paymentInsightBars .miniBars{margin-bottom:0}
+.reportPaymentInsight{grid-template-columns:1fr;margin:0 0 16px;padding:0;background:transparent;border:0}
 .dashTwoCol{display:grid;grid-template-columns:1.5fr 1fr;gap:16px}
 .chartCard,.bestSellingCard,.recentPanel{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07);border-radius:14px;padding:20px}
 .chartHeader{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;color:#fff;font-weight:700;font-size:.9rem}
@@ -3675,4 +3689,4 @@ label {
 .statusChip.ontime{color:#22c55e;background:rgba(34,197,94,.12)}
 .statusChip.late{color:#ef4444;background:rgba(239,68,68,.12)}
 .navGlyph{font-size:1rem!important;background:none!important;width:auto!important;height:auto!important}
-@media(max-width:900px){.dashTwoCol{grid-template-columns:1fr}.adminGreeting{flex-direction:column;align-items:flex-start}.headerRight{flex-wrap:wrap}}
+@media(max-width:900px){.dashTwoCol,.paymentInsightCard{grid-template-columns:1fr}.adminGreeting{flex-direction:column;align-items:flex-start}.headerRight{flex-wrap:wrap}}

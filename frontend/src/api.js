@@ -30,6 +30,7 @@ async function request(path, options = {}) {
 
 export const api = {
   login: (payload) => request("/api/auth/login", { method: "POST", body: JSON.stringify(payload) }),
+  register: (payload) => request("/api/auth/register", { method: "POST", body: JSON.stringify(payload) }),
   concerts: () => request("/api/concerts"),
   seats: (showtimeId) => request(`/api/showtimes/${showtimeId}/seats`),
   bookingHistory: () => request("/api/bookings/history"),

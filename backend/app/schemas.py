@@ -11,7 +11,10 @@ class LoginRequest(BaseModel):
 
 
 class RegisterRequest(BaseModel):
+    username: str = Field(..., min_length=1, max_length=80)
     full_name: str = Field(..., min_length=1, max_length=120)
+    date_of_birth: Optional[date] = None
+    address: Optional[str] = None
     email: EmailStr
     phone: Optional[str] = None
     password: str = Field(..., min_length=8)
@@ -32,6 +35,7 @@ class ConcertCreate(BaseModel):
     venue_name: str = Field(..., min_length=1, max_length=160)
     venue_city: str = Field(..., min_length=1, max_length=120)
     venue_address: Optional[str] = None
+    venue_hall: Optional[str] = None
     venue_capacity: Optional[int] = Field(default=None, gt=0)
     show_date: date
     show_time: time

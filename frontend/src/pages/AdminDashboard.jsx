@@ -50,6 +50,13 @@ const analyticsReportOptions = [
   ["14", "Report 14: Average Tickets per Booking"],
 ];
 
+const paymentMethodLabels = {
+  card: "Credit / Debit Card",
+  promptpay: "PromptPay",
+  bank_transfer: "Bank Transfer",
+  wallet: "Mobile Wallet",
+};
+
 function emptyForm() {
   return {
     title: "",
@@ -59,6 +66,7 @@ function emptyForm() {
     poster_url: "",
     venue_name: "",
     venue_city: "",
+    venue_hall: "",
     venue_capacity: 200,
     show_date: "",
     show_time: "19:30",
@@ -165,6 +173,10 @@ function reportValue(row, keys, fallback = "-") {
     if (row?.[key] !== undefined && row?.[key] !== null && row?.[key] !== "") return row[key];
   }
   return fallback;
+}
+
+function paymentMethodLabel(value) {
+  return paymentMethodLabels[value] || String(value || "Unknown");
 }
 
 function MiniBars({ rows = [], valueKey, labelKey, format = (value) => value }) {
@@ -321,6 +333,25 @@ export default function AdminDashboard() {
         .slice(0, 5),
     [concerts],
   );
+  const popularPaymentMethods = useMemo(
+    () =>
+      (analytics.popular_payment_methods || []).map((row) => ({
+        ...row,
+        display_method: paymentMethodLabel(row.payment_method),
+      })),
+    [analytics.popular_payment_methods],
+  );
+  const mostPopularPayment = popularPaymentMethods[0] || null;
+  const bestSellingZones = useMemo(
+    () =>
+      [...(analytics.seat_occupancy_by_zone || [])].sort(
+        (a, b) =>
+          Number(b.seats_reserved || 0) - Number(a.seats_reserved || 0) ||
+          Number(b.occupancy_rate || 0) - Number(a.occupancy_rate || 0),
+      ),
+    [analytics.seat_occupancy_by_zone],
+  );
+  const topSellingZone = bestSellingZones[0] || null;
 
   let confirmTitle = "Confirm Delete";
   let confirmBody = "";
@@ -629,9 +660,9 @@ export default function AdminDashboard() {
                   <div className="recentPanel">
                     <div className="recentHeader"><h3>Popular Payment Methods</h3></div>
                     <AnalyticsTable
-                      rows={analytics.popular_payment_methods || []}
+                      rows={popularPaymentMethods}
                       columns={[
-                        { label: "Method", keys: ["payment_method"] },
+                        { label: "Method", keys: ["display_method"] },
                         { label: "Uses", keys: ["usage_count"] },
                         { label: "Amount", render: (row) => money(row.total_amount) },
                       ]}
@@ -742,6 +773,16 @@ export default function AdminDashboard() {
                         updateField("venue_city", event.target.value)
                       }
                       required
+                    />
+                  </label>
+                  <label>
+                    <span>Hall</span>
+                    <input
+                      value={form.venue_hall}
+                      onChange={(event) =>
+                        updateField("venue_hall", event.target.value)
+                      }
+                      placeholder="Main Hall"
                     />
                   </label>
                   <label>
@@ -1204,6 +1245,84 @@ export default function AdminDashboard() {
                 )}
                 note="Completed payments"
               />
+            </div>
+            <div className="dashTwoCol">
+              <Panel
+                title="Monthly Revenue by Concert"
+                note="Monthly revenue grouped by concert"
+              >
+                <MiniBars
+                  rows={analytics.monthly_revenue_per_concert || []}
+                  labelKey="concert"
+                  valueKey="total_revenue"
+                  format={money}
+                />
+                <AnalyticsTable
+                  rows={analytics.monthly_revenue_per_concert || []}
+                  columns={[
+                    { label: "Concert", keys: ["concert"] },
+                    { label: "Month", keys: ["period"] },
+                    { label: "Bookings", keys: ["paid_bookings"] },
+                    { label: "Tickets", keys: ["tickets_sold"] },
+                    { label: "Revenue", render: (row) => money(row.total_revenue) },
+                  ]}
+                />
+              </Panel>
+              <Panel
+                title="Most Popular Payment Method"
+                note={mostPopularPayment ? `${mostPopularPayment.display_method} is used most often` : "Payment method usage"}
+              >
+                <div className="paymentInsightCard reportPaymentInsight">
+                  <div className="paymentInsightHero">
+                    <span className="paymentInsightIcon">💳</span>
+                    <div>
+                      <small>TOP PAYMENT METHOD</small>
+                      <strong>{mostPopularPayment ? mostPopularPayment.display_method : "No payment yet"}</strong>
+                      <p>
+                        {mostPopularPayment
+                          ? `${mostPopularPayment.usage_count} uses · ${money(mostPopularPayment.total_amount)} total`
+                          : "Completed payments will appear here after customers buy tickets."}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="paymentInsightBars">
+                    <MiniBars
+                      rows={popularPaymentMethods}
+                      labelKey="display_method"
+                      valueKey="usage_count"
+                      format={(value) => `${value} uses`}
+                    />
+                  </div>
+                </div>
+                <AnalyticsTable
+                  rows={popularPaymentMethods}
+                  columns={[
+                    { label: "Method", keys: ["display_method"] },
+                    { label: "Uses", keys: ["usage_count"] },
+                    { label: "Amount", render: (row) => money(row.total_amount) },
+                  ]}
+                />
+              </Panel>
+              <Panel
+                title="Best Selling Seat Zones"
+                note={topSellingZone ? `Top zone: ${topSellingZone.zone_name}` : "Ranking by sold/reserved seats"}
+              >
+                <MiniBars
+                  rows={bestSellingZones}
+                  labelKey="zone_name"
+                  valueKey="seats_reserved"
+                  format={(value) => `${value} seats`}
+                />
+                <AnalyticsTable
+                  rows={bestSellingZones}
+                  columns={[
+                    { label: "Zone", keys: ["zone_name"] },
+                    { label: "Sold/Reserved", keys: ["seats_reserved"] },
+                    { label: "Total Seats", keys: ["total_seat"] },
+                    { label: "Rate", render: (row) => pct(row.occupancy_rate) },
+                  ]}
+                />
+              </Panel>
             </div>
             <Panel
               title="Customer Loyalty Report"

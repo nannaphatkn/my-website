@@ -8,10 +8,14 @@
 
 CREATE TABLE IF NOT EXISTS users (
     user_id SERIAL PRIMARY KEY,
+    username VARCHAR(80) NOT NULL UNIQUE,
     full_name VARCHAR(120) NOT NULL,
+    date_of_birth DATE,
+    address TEXT,
     email VARCHAR(255) NOT NULL UNIQUE CHECK (email LIKE '%@%.%'),
     phone VARCHAR(30) UNIQUE,
     password_hash TEXT NOT NULL,
+    status VARCHAR(20) NOT NULL DEFAULT 'active',
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
@@ -21,6 +25,7 @@ CREATE TABLE IF NOT EXISTS admin (
     username VARCHAR(80) NOT NULL UNIQUE,
     email VARCHAR(255) NOT NULL UNIQUE CHECK (email LIKE '%@%.%'),
     password_hash TEXT NOT NULL,
+    admin_role VARCHAR(50) NOT NULL DEFAULT 'admin' CHECK (admin_role IN ('read', 'write', 'admin')),
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
@@ -30,6 +35,7 @@ CREATE TABLE IF NOT EXISTS venue (
     address TEXT,
     city VARCHAR(120) NOT NULL,
     capacity INTEGER CHECK (capacity IS NULL OR capacity > 0),
+    hall VARCHAR(100),
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     UNIQUE (venue_name, city)
 );
@@ -68,6 +74,7 @@ CREATE TABLE IF NOT EXISTS showtime (
 CREATE TABLE IF NOT EXISTS zone (
     zone_id SERIAL PRIMARY KEY,
     showtime_id INTEGER NOT NULL REFERENCES showtime(showtime_id) ON DELETE CASCADE,
+    venue_id INTEGER REFERENCES venue(venue_id) ON DELETE SET NULL,
     zone_name VARCHAR(80) NOT NULL,
     price NUMERIC(10, 2) NOT NULL CHECK (price >= 0),
     total_seat INTEGER NOT NULL CHECK (total_seat > 0),
@@ -79,6 +86,9 @@ CREATE TABLE IF NOT EXISTS seat (
     seat_id SERIAL PRIMARY KEY,
     zone_id INTEGER NOT NULL REFERENCES zone(zone_id) ON DELETE CASCADE,
     seat_no VARCHAR(20) NOT NULL,
+    seat_row VARCHAR(10),
+    seat_type VARCHAR(50),
+    venue_id INTEGER REFERENCES venue(venue_id) ON DELETE SET NULL,
     seat_status VARCHAR(20) NOT NULL DEFAULT 'available'
         CHECK (seat_status IN ('available', 'pending', 'sold', 'blocked')),
     locked_until TIMESTAMPTZ,
@@ -125,23 +135,28 @@ CREATE INDEX IF NOT EXISTS idx_booking_status_expiry ON booking(booking_status, 
 CREATE INDEX IF NOT EXISTS idx_payment_paid_at ON payment(paid_at);
 CREATE INDEX IF NOT EXISTS idx_ticket_showtime ON ticket(showtime_id);
 
-INSERT INTO users (full_name, email, phone, password_hash)
+INSERT INTO users (username, full_name, date_of_birth, address, email, phone, password_hash, status)
 VALUES
     (
+        'democustomer',
         'Demo Customer',
+        '1990-01-01',
+        '123 Fake Street, Bangkok',
         'customer@example.com',
         '+66000000000',
-        'pbkdf2_sha256$260000$customer_salt_v1$7+OZ51TevdKsixREzKBCRS2epZ9pWyxdRR4/A41JIE4='
+        'pbkdf2_sha256$260000$customer_salt_v1$7+OZ51TevdKsixREzKBCRS2epZ9pWyxdRR4/A41JIE4=',
+        'active'
     )
 ON CONFLICT (email) DO NOTHING;
 
-INSERT INTO admin (display_name, username, email, password_hash)
+INSERT INTO admin (display_name, username, email, password_hash, admin_role)
 VALUES
     (
         'Backstage Admin',
         'admin',
         'admin@example.com',
-        'pbkdf2_sha256$260000$admin_salt_v1$2sbJd7jmWHCe2fupmlyXLA2D0sa1OorVb4W9tTpakEw='
+        'pbkdf2_sha256$260000$admin_salt_v1$2sbJd7jmWHCe2fupmlyXLA2D0sa1OorVb4W9tTpakEw=',
+        'admin'
     )
 ON CONFLICT (email) DO NOTHING;
 
@@ -218,18 +233,18 @@ FROM concert c JOIN venue v ON v.venue_name='MCC Hall' WHERE c.title LIKE '%GDH%
 
 -- ═══ ZONES (for all showtimes) ═══
 -- JAEHYUN zones
-INSERT INTO zone (showtime_id, zone_name, price, total_seat)
-SELECT s.showtime_id, z.zone_name, z.price, z.total_seat FROM showtime s JOIN concert c ON c.concert_id=s.concert_id
+INSERT INTO zone (showtime_id, venue_id, zone_name, price, total_seat)
+SELECT s.showtime_id, s.venue_id, z.zone_name, z.price, z.total_seat FROM showtime s JOIN concert c ON c.concert_id=s.concert_id
 CROSS JOIN (VALUES('VIP PACKAGE',6600.00,30),('STANDING',5600.00,50),('ZONE A',4700.00,40),('ZONE B',3700.00,60),('ZONE C',2700.00,80)) AS z(zone_name,price,total_seat)
 WHERE c.title='JAEHYUN FAN-CON TOUR «Mono» in BANGKOK' ON CONFLICT (showtime_id,zone_name) DO NOTHING;
 -- Other concerts: standard 3-zone layout
-INSERT INTO zone (showtime_id, zone_name, price, total_seat)
-SELECT s.showtime_id, z.zone_name, z.price, z.total_seat FROM showtime s JOIN concert c ON c.concert_id=s.concert_id
+INSERT INTO zone (showtime_id, venue_id, zone_name, price, total_seat)
+SELECT s.showtime_id, s.venue_id, z.zone_name, z.price, z.total_seat FROM showtime s JOIN concert c ON c.concert_id=s.concert_id
 CROSS JOIN (VALUES('VIP',4500.00,30),('Standard',2500.00,60),('Economy',1500.00,100)) AS z(zone_name,price,total_seat)
 WHERE c.title NOT LIKE '%JAEHYUN%' ON CONFLICT (showtime_id,zone_name) DO NOTHING;
 
 -- ═══ SEATS ═══
-INSERT INTO seat (zone_id, seat_no)
-SELECT z.zone_id, CONCAT(UPPER(SUBSTRING(REPLACE(z.zone_name,' ','') FROM 1 FOR 2)),'-',LPAD(gs::TEXT,3,'0'))
+INSERT INTO seat (zone_id, seat_no, seat_row, seat_type, venue_id)
+SELECT z.zone_id, CONCAT(UPPER(SUBSTRING(REPLACE(z.zone_name,' ','') FROM 1 FOR 2)),'-',LPAD(gs::TEXT,3,'0')), UPPER(SUBSTRING(REPLACE(z.zone_name,' ','') FROM 1 FOR 2)), z.zone_name, z.venue_id
 FROM zone z CROSS JOIN LATERAL generate_series(1, z.total_seat) AS gs
 ON CONFLICT (zone_id, seat_no) DO NOTHING;

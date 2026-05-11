@@ -1,6 +1,8 @@
 import { Navigate, Route, Routes } from "react-router-dom";
+import { useEffect } from "react";
+import { useLocation } from "react-router-dom";
 
-import { getSession } from "./auth";
+import { getLastRoute, getSession, saveLastRoute } from "./auth";
 import AdminDashboard from "./pages/AdminDashboard.jsx";
 import CustomerBookingPage from "./pages/CustomerBookingPage.jsx";
 import LoginPage from "./pages/LoginPage.jsx";
@@ -15,10 +17,15 @@ function RoleRoute({ role, children }) {
 function HomeRedirect() {
   const session = getSession();
   if (!session) return <Navigate to="/login" replace />;
-  return <Navigate to={session.role === "admin" ? "/admin" : "/concerts"} replace />;
+  return <Navigate to={getLastRoute(session.role)} replace />;
 }
 
 export default function App() {
+  const location = useLocation();
+  useEffect(() => {
+    saveLastRoute(location.pathname);
+  }, [location.pathname]);
+
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />

@@ -32,7 +32,7 @@ def verify_password(password: str, stored_hash: str) -> bool:
         return False
 
 
-def create_access_token(subject: int, role: str, profile_name: str) -> str:
+def create_access_token(subject: int, role: str, profile_name: str, admin_role: str | None = None) -> str:
     expires_in = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "120"))
     payload: dict[str, Any] = {
         "sub": str(subject),
@@ -41,6 +41,8 @@ def create_access_token(subject: int, role: str, profile_name: str) -> str:
         "exp": datetime.now(timezone.utc) + timedelta(minutes=expires_in),
         "iat": datetime.now(timezone.utc),
     }
+    if admin_role:
+        payload["admin_role"] = admin_role
     return jwt.encode(payload, os.getenv("JWT_SECRET", "dev-only-change-me"), algorithm=JWT_ALGORITHM)
 
 
