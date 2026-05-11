@@ -55,5 +55,15 @@ services:
     depends_on:
       - backend
 
+  adminer:
+    image: adminer:4
+    container_name: concert-ticket-adminer
+    restart: unless-stopped
+    ports:
+      - "8081:8080"
+    depends_on:
+      db:
+        condition: service_healthy
+
 volumes:
   postgres_data:
