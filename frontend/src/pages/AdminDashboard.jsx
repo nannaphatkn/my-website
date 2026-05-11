@@ -1,4 +1,4 @@
-import { CalendarPlus, LogOut, Music2, RefreshCw, Trash2 } from "lucide-react";
+import { CalendarPlus, LogOut, Music2, RefreshCw, Trash2, Edit } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router-dom";
@@ -56,6 +56,7 @@ function emptyForm() {
     artist: "",
     genre: "Indie Rock",
     description: "",
+    poster_url: "",
     venue_name: "",
     venue_city: "",
     venue_capacity: 200,
@@ -258,6 +259,45 @@ export default function AdminDashboard() {
   const [analytics, setAnalytics] = useState({});
   const [selectedAnalyticsReport, setSelectedAnalyticsReport] = useState("1");
   const [form, setForm] = useState(emptyForm());
+  const [editingConcert, setEditingConcert] = useState(null);
+  const [editForm, setEditForm] = useState({ title: "", artist: "", genre: "", description: "", poster_url: "" });
+
+  function startEdit(concert) {
+    setEditingConcert(concert);
+    setEditForm({
+      title: concert.title || "",
+      artist: concert.artist || "",
+      genre: concert.genre || "",
+      description: concert.description || "",
+      poster_url: concert.poster_url || ""
+    });
+  }
+
+  async function saveEdit(event) {
+    event.preventDefault();
+    setNotice("");
+    try {
+      await api.updateConcert(editingConcert.concert_id, editForm);
+      setEditingConcert(null);
+      await loadAll();
+      setNotice("Concert updated.");
+    } catch (err) {
+      setNotice(err.message);
+    }
+  }
+
+  async function handleUpload(e, setField) {
+    const file = e.target.files[0];
+    if (!file) return;
+    try {
+      setNotice("Uploading...");
+      const res = await api.uploadPoster(file);
+      setField(res.poster_url);
+      setNotice("Poster uploaded successfully!");
+    } catch (err) {
+      setNotice(err.message);
+    }
+  }
 
   const title = sections.find(([id]) => id === active)?.[1] || "Dashboard";
   const topConcert = revenue.rows[0];
@@ -612,6 +652,23 @@ export default function AdminDashboard() {
                     />
                   </label>
                   <label>
+                    <span>Poster URL</span>
+                    <div style={{ display: "flex", gap: "8px" }}>
+                      <input
+                        value={form.poster_url}
+                        onChange={(event) =>
+                          updateField("poster_url", event.target.value)
+                        }
+                        placeholder="/posters/default.jpg"
+                        style={{ flex: 1 }}
+                      />
+                      <label className="button secondary compact" style={{ margin: 0, cursor: "pointer", display: "flex", alignItems: "center" }}>
+                        Upload
+                        <input type="file" accept="image/*" style={{ display: "none" }} onChange={(e) => handleUpload(e, (val) => updateField("poster_url", val))} />
+                      </label>
+                    </div>
+                  </label>
+                  <label>
                     <Required>Venue</Required>
                     <input
                       value={form.venue_name}
@@ -741,18 +798,29 @@ export default function AdminDashboard() {
                           </span>
                         </td>
                         <td>
-                          <button
-                            className="deleteOutline"
-                            onClick={() =>
-                              setConfirmTarget({
-                                type: "concert",
-                                item: concert,
-                              })
-                            }
-                            type="button"
-                          >
-                            <Trash2 size={15} /> Delete
-                          </button>
+                          <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+                            <button
+                              className="button secondary compact"
+                              onClick={() => startEdit(concert)}
+                              type="button"
+                              style={{ padding: "4px 8px" }}
+                            >
+                              <Edit size={15} /> Edit
+                            </button>
+                            <button
+                              className="deleteOutline"
+                              onClick={() =>
+                                setConfirmTarget({
+                                  type: "concert",
+                                  item: concert,
+                                })
+                              }
+                              type="button"
+                              style={{ margin: 0 }}
+                            >
+                              <Trash2 size={15} /> Delete
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -1473,6 +1541,74 @@ export default function AdminDashboard() {
         onCancel={() => setConfirmTarget(null)}
         onConfirm={runConfirm}
       />
+
+      {editingConcert && (
+        <div className="dialogBackdrop" role="presentation">
+          <section className="dialog" style={{ maxWidth: "500px" }} role="dialog">
+            <h2>Edit Concert</h2>
+            <form className="adminForm compactForm" onSubmit={saveEdit}>
+              <div className="formGrid">
+                <label className="wide">
+                  <span>Concert Name</span>
+                  <input
+                    value={editForm.title}
+                    onChange={(e) => setEditForm((f) => ({ ...f, title: e.target.value }))}
+                    required
+                  />
+                </label>
+                <label>
+                  <span>Artist</span>
+                  <input
+                    value={editForm.artist}
+                    onChange={(e) => setEditForm((f) => ({ ...f, artist: e.target.value }))}
+                    required
+                  />
+                </label>
+                <label>
+                  <span>Type</span>
+                  <input
+                    value={editForm.genre}
+                    onChange={(e) => setEditForm((f) => ({ ...f, genre: e.target.value }))}
+                  />
+                </label>
+                <label className="wide">
+                  <span>Poster URL</span>
+                  <div style={{ display: "flex", gap: "8px" }}>
+                    <input
+                      value={editForm.poster_url}
+                      onChange={(e) => setEditForm((f) => ({ ...f, poster_url: e.target.value }))}
+                      style={{ flex: 1 }}
+                    />
+                    <label className="button secondary compact" style={{ margin: 0, cursor: "pointer", display: "flex", alignItems: "center" }}>
+                      Upload
+                      <input type="file" accept="image/*" style={{ display: "none" }} onChange={(e) => handleUpload(e, (val) => setEditForm((f) => ({ ...f, poster_url: val })))} />
+                    </label>
+                  </div>
+                </label>
+                <label className="wide">
+                  <span>Description</span>
+                  <textarea
+                    value={editForm.description}
+                    onChange={(e) => setEditForm((f) => ({ ...f, description: e.target.value }))}
+                  />
+                </label>
+              </div>
+              <div className="dialogActions" style={{ marginTop: "20px" }}>
+                <button
+                  className="button secondary"
+                  onClick={() => setEditingConcert(null)}
+                  type="button"
+                >
+                  Cancel
+                </button>
+                <button className="button primary" type="submit">
+                  Save Changes
+                </button>
+              </div>
+            </form>
+          </section>
+        </div>
+      )}
     </main>
   );
 }

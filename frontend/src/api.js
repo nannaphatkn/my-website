@@ -6,14 +6,19 @@ function authHeaders() {
 }
 
 async function request(path, options = {}) {
-  const response = await fetch(`${API_BASE_URL}${path}`, {
-    ...options,
-    headers: {
-      "Content-Type": "application/json",
-      ...authHeaders(),
-      ...(options.headers || {})
-    }
-  });
+  let response;
+  if (!(options.body instanceof FormData) && !options.headers?.["Content-Type"]) {
+    options.headers = options.headers || {};
+    options.headers["Content-Type"] = "application/json";
+    response = await fetch(`${API_BASE_URL}${path}`, {
+      ...options,
+      headers: { ...authHeaders(), ...options.headers }
+    });
+  } else {
+    const headers = { ...authHeaders(), ...(options.headers || {}) };
+    if (headers["Content-Type"] === undefined) delete headers["Content-Type"];
+    response = await fetch(`${API_BASE_URL}${path}`, { ...options, headers });
+  }
 
   const text = await response.text();
   const data = text ? JSON.parse(text) : null;
@@ -45,7 +50,13 @@ export const api = {
   deleteBooking: (bookingId) => request(`/api/admin/bookings/${bookingId}`, { method: "DELETE" }),
   loyalty: () => request("/api/admin/loyalty"),
   analytics: () => request("/api/admin/analytics"),
+  uploadPoster: (file) => {
+    const formData = new FormData();
+    formData.append("file", file);
+    return request("/api/admin/upload-poster", { method: "POST", body: formData, headers: { "Content-Type": undefined } });
+  },
   createConcert: (payload) => request("/api/admin/concerts", { method: "POST", body: JSON.stringify(payload) }),
+  updateConcert: (concertId, payload) => request(`/api/admin/concerts/${concertId}`, { method: "PATCH", body: JSON.stringify(payload) }),
   deleteConcert: (concertId) => request(`/api/admin/concerts/${concertId}`, { method: "DELETE" }),
   revenue: ({ month, year }) => {
     const params = new URLSearchParams();

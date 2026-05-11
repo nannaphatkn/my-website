@@ -4,16 +4,18 @@ import asyncio
 import os
 import uuid
 from datetime import datetime
+import shutil
 from decimal import Decimal
 
 import psycopg2
-from fastapi import Depends, FastAPI, HTTPException, Query, status
+from fastapi import Depends, FastAPI, HTTPException, Query, status, File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 
 from .database import db_session, wait_for_db
 from .dependencies import Principal, get_current_principal, require_admin, require_customer
 from .schemas import (
     ConcertCreate,
+    ConcertUpdate,
     LoginRequest,
     PaymentConfirmRequest,
     RegisterRequest,
@@ -645,6 +647,8 @@ def admin_concerts(_: Principal = Depends(require_admin)):
                     c.title,
                     c.artist,
                     c.genre,
+                    c.description,
+                    c.poster_url,
                     c.is_active,
                     MIN(s.show_date) AS next_show_date,
                     COUNT(DISTINCT s.showtime_id) AS showtime_count,
@@ -1032,6 +1036,41 @@ def create_concert(payload: ConcertCreate, principal: Principal = Depends(requir
         raise HTTPException(status_code=409, detail="Venue is already booked at that date and time") from exc
 
     return {"concert_id": concert_id, "showtime_id": showtime["showtime_id"], "zone_ids": created_zones}
+
+
+@app.post("/api/admin/upload-poster")
+def upload_poster(file: UploadFile = File(...), _: Principal = Depends(require_admin)):
+    ext = file.filename.split(".")[-1] if "." in file.filename else "jpg"
+    filename = f"{uuid.uuid4().hex}.{ext}"
+    os.makedirs("/app/posters", exist_ok=True)
+    filepath = f"/app/posters/{filename}"
+    with open(filepath, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+    return {"poster_url": f"/posters/{filename}"}
+
+
+@app.patch("/api/admin/concerts/{concert_id}")
+def update_concert(concert_id: int, payload: ConcertUpdate, _: Principal = Depends(require_admin)):
+    with db_session() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                UPDATE concert
+                SET
+                    title = COALESCE(%s, title),
+                    artist = COALESCE(%s, artist),
+                    genre = COALESCE(%s, genre),
+                    description = COALESCE(%s, description),
+                    poster_url = COALESCE(%s, poster_url)
+                WHERE concert_id = %s
+                RETURNING concert_id
+                """,
+                (payload.title, payload.artist, payload.genre, payload.description, payload.poster_url, concert_id),
+            )
+            updated = cur.fetchone()
+            if not updated:
+                raise HTTPException(status_code=404, detail="Concert not found")
+    return {"updated": True, "concert_id": concert_id}
 
 
 @app.delete("/api/admin/concerts/{concert_id}")

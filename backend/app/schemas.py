@@ -40,6 +40,14 @@ class ConcertCreate(BaseModel):
     zones: list[ZoneCreate] = Field(..., min_length=1)
 
 
+class ConcertUpdate(BaseModel):
+    title: Optional[str] = Field(default=None, min_length=1, max_length=180)
+    artist: Optional[str] = Field(default=None, min_length=1, max_length=160)
+    genre: Optional[str] = None
+    description: Optional[str] = None
+    poster_url: Optional[str] = None
+
+
 class SeatHoldRequest(BaseModel):
     showtime_id: int = Field(..., gt=0)
     seat_ids: list[int] = Field(..., min_length=1)
