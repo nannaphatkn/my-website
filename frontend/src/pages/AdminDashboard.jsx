@@ -358,8 +358,6 @@ export default function AdminDashboard() {
     setCleanup(cleanupData);
     setLoyalty(loyaltyData);
     setAnalytics(analyticsData);
-    if (isInitial && !showtime && inventoryData.showtimes.length)
-      setSelectedShowtime(String(inventoryData.showtimes[0].showtime_id));
   }
 
   useEffect(() => {
@@ -461,7 +459,7 @@ export default function AdminDashboard() {
             <Music2 size={20} />
           </span>
           <div>
-            <strong>StageMaster</strong>
+            <strong>NodNod Tickets</strong>
             <small>Admin Console</small>
           </div>
         </div>
@@ -569,28 +567,72 @@ export default function AdminDashboard() {
                     })}
                   </div>
                 </div>
-                <div className="recentPanel">
-                  <div className="recentHeader"><h3>Recent booking</h3><button className="viewAllBtn">View All</button></div>
-                  <table className="consoleTable recentTable">
-                    <thead><tr><th>Booking ID</th><th>Customer</th><th>Zone</th><th>Check In Time</th><th>Status</th></tr></thead>
-                    <tbody>
-                      {(dashboard.recent_bookings.length ? dashboard.recent_bookings : [
-                        {booking_id:1,customer:'Leasle Watson',zone:'VIP',booking_status:'On Time'},
-                        {booking_id:2,customer:'Darlene Robertson',zone:'Standard',booking_status:'Late'},
-                        {booking_id:3,customer:'Jacob Jones',zone:'VIP',booking_status:'Late'},
-                        {booking_id:4,customer:'Kathryn Murphy',zone:'Standard',booking_status:'On Time'},
-                        {booking_id:5,customer:'Leslie Alexander',zone:'Standard',booking_status:'On Time'},
-                      ]).map((b,i) => (
-                        <tr key={b.booking_id || i}>
-                          <td><div className="bookingIdCell"><div className="bookingAvatar">{b.customer?.charAt(0)}</div>{b.customer}</div></td>
-                          <td>{b.concert || 'Team Lead - Design'}</td>
-                          <td>{b.zone}</td>
-                          <td>{b.total_amount ? money(b.total_amount) : (['09:27 AM','10:15 AM','10:24 AM','09:10 AM','09:15 AM'][i])}</td>
-                          <td><span className={`statusChip ${b.booking_status==='Late'?'late':'ontime'}`}>{b.booking_status}</span></td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                <div className="dashTwoCol" style={{ marginTop: "24px" }}>
+                  <div className="recentPanel">
+                    <div className="recentHeader"><h3>Revenue Report</h3></div>
+                    <AnalyticsTable
+                      rows={analytics.monthly_revenue_per_concert || []}
+                      columns={[
+                        { label: "Concert", keys: ["concert"] },
+                        { label: "Bookings", keys: ["paid_bookings"] },
+                        { label: "Revenue", render: (row) => money(row.total_revenue) },
+                      ]}
+                    />
+                  </div>
+                  <div className="recentPanel">
+                    <div className="recentHeader"><h3>Top Customers by Spending</h3></div>
+                    <AnalyticsTable
+                      rows={analytics.top_customers_by_spending || []}
+                      columns={[
+                        { label: "Customer", keys: ["customer"] },
+                        { label: "Bookings", keys: ["paid_bookings"] },
+                        { label: "Spend", render: (row) => money(row.total_spending) },
+                      ]}
+                    />
+                  </div>
+                  <div className="recentPanel">
+                    <div className="recentHeader"><h3>Seat Occupancy by Zone</h3></div>
+                    <AnalyticsTable
+                      rows={analytics.seat_occupancy_by_zone || []}
+                      columns={[
+                        { label: "Zone", keys: ["zone_name"] },
+                        { label: "Total", keys: ["total_seat"] },
+                        { label: "Occupancy", render: (row) => pct(row.occupancy_rate) },
+                      ]}
+                    />
+                  </div>
+                  <div className="recentPanel">
+                    <div className="recentHeader"><h3>Booking Status Summary</h3></div>
+                    <AnalyticsTable
+                      rows={analytics.booking_status_summary || []}
+                      columns={[
+                        { label: "Status", render: (row) => <Status value={row.booking_status} /> },
+                        { label: "Bookings", keys: ["total_bookings"] },
+                        { label: "Share", render: (row) => pct(row.percentage) },
+                      ]}
+                    />
+                  </div>
+                  <div className="recentPanel">
+                    <div className="recentHeader"><h3>Popular Payment Methods</h3></div>
+                    <AnalyticsTable
+                      rows={analytics.popular_payment_methods || []}
+                      columns={[
+                        { label: "Method", keys: ["payment_method"] },
+                        { label: "Uses", keys: ["usage_count"] },
+                        { label: "Amount", render: (row) => money(row.total_amount) },
+                      ]}
+                    />
+                  </div>
+                  <div className="recentPanel">
+                    <div className="recentHeader"><h3>Top Concerts by Rate</h3></div>
+                    <AnalyticsTable
+                      rows={analytics.top_concerts_by_booking_rate || []}
+                      columns={[
+                        { label: "Concert", keys: ["concert"] },
+                        { label: "Rate", render: (row) => pct(row.booking_rate) },
+                      ]}
+                    />
+                  </div>
                 </div>
               </div>
             )}
@@ -1268,7 +1310,6 @@ export default function AdminDashboard() {
                 <AnalyticsTable
                   rows={analytics.seat_occupancy_by_zone || []}
                   columns={[
-                    { label: "Venue", keys: ["venue"] },
                     { label: "Zone", keys: ["zone_name"] },
                     { label: "Reserved", keys: ["seats_reserved"] },
                     { label: "Total", keys: ["total_seat"] },

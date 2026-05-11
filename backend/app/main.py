@@ -157,6 +157,18 @@ def login(payload: LoginRequest):
             )
             user = cur.fetchone()
             if user and verify_password(payload.password, user["password_hash"]):
+                # Clear any lingering pending bookings for this user so they start fresh
+                cur.execute(
+                    """
+                    UPDATE booking 
+                    SET hold_expires_at = NOW() - INTERVAL '1 minute'
+                    WHERE user_id = %s AND booking_status = 'pending'
+                    """,
+                    (user["id"],)
+                )
+                conn.commit()
+                release_expired_locks()
+
                 token = create_access_token(user["id"], "customer", user["profile_name"])
                 return {
                     "access_token": token,
@@ -184,6 +196,23 @@ def login(payload: LoginRequest):
                 }
 
     raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid login credentials")
+
+
+@app.post("/api/auth/logout")
+def logout(principal: Principal = Depends(get_current_principal)):
+    if principal.role == "customer":
+        with db_session() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    UPDATE booking 
+                    SET hold_expires_at = NOW() - INTERVAL '1 minute'
+                    WHERE user_id = %s AND booking_status = 'pending'
+                    """,
+                    (principal.id,)
+                )
+        release_expired_locks()
+    return {"status": "ok"}
 
 
 @app.get("/api/concerts")
@@ -1177,23 +1206,19 @@ def analytics_reports(_: Principal = Depends(require_admin)):
             cur.execute(
                 """
                 SELECT
-                    COALESCE(v.venue_name, '-') AS venue,
-                    s.show_date,
                     z.zone_name,
-                    z.price,
-                    z.total_seat,
-                    COUNT(st.seat_id) FILTER (WHERE st.seat_status IN ('sold', 'pending')) AS seats_reserved,
+                    SUM(z.total_seat) AS total_seat,
+                    SUM(
+                        (SELECT COUNT(*) FROM seat st WHERE st.zone_id = z.zone_id AND st.seat_status IN ('sold', 'pending'))
+                    ) AS seats_reserved,
                     ROUND(
-                        COUNT(st.seat_id) FILTER (WHERE st.seat_status IN ('sold', 'pending')) * 100.0
-                        / NULLIF(COUNT(st.seat_id), 0),
+                        SUM((SELECT COUNT(*) FROM seat st WHERE st.zone_id = z.zone_id AND st.seat_status IN ('sold', 'pending'))) * 100.0
+                        / NULLIF(SUM(z.total_seat), 0),
                         2
                     ) AS occupancy_rate
                 FROM zone z
-                JOIN showtime s ON s.showtime_id = z.showtime_id
-                LEFT JOIN venue v ON v.venue_id = s.venue_id
-                LEFT JOIN seat st ON st.zone_id = z.zone_id
-                GROUP BY v.venue_name, s.show_date, z.zone_id
-                ORDER BY s.show_date ASC, occupancy_rate DESC NULLS LAST
+                GROUP BY z.zone_name
+                ORDER BY occupancy_rate DESC NULLS LAST
                 """
             )
             reports["seat_occupancy_by_zone"] = _json_safe_rows(cur.fetchall())

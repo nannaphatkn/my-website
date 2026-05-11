@@ -9,8 +9,8 @@
 CREATE TABLE IF NOT EXISTS users (
     user_id SERIAL PRIMARY KEY,
     full_name VARCHAR(120) NOT NULL,
-    email VARCHAR(255) NOT NULL UNIQUE,
-    phone VARCHAR(30),
+    email VARCHAR(255) NOT NULL UNIQUE CHECK (email LIKE '%@%.%'),
+    phone VARCHAR(30) UNIQUE,
     password_hash TEXT NOT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -19,7 +19,7 @@ CREATE TABLE IF NOT EXISTS admin (
     admin_id SERIAL PRIMARY KEY,
     display_name VARCHAR(120) NOT NULL,
     username VARCHAR(80) NOT NULL UNIQUE,
-    email VARCHAR(255) NOT NULL UNIQUE,
+    email VARCHAR(255) NOT NULL UNIQUE CHECK (email LIKE '%@%.%'),
     password_hash TEXT NOT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -36,7 +36,7 @@ CREATE TABLE IF NOT EXISTS venue (
 
 CREATE TABLE IF NOT EXISTS concert (
     concert_id SERIAL PRIMARY KEY,
-    title VARCHAR(180) NOT NULL,
+    title VARCHAR(180) NOT NULL UNIQUE,
     artist VARCHAR(160) NOT NULL,
     genre VARCHAR(80),
     description TEXT,
@@ -57,7 +57,7 @@ CREATE TABLE IF NOT EXISTS showtime (
     showtime_id SERIAL PRIMARY KEY,
     concert_id INTEGER NOT NULL REFERENCES concert(concert_id) ON DELETE CASCADE,
     venue_id INTEGER REFERENCES venue(venue_id) ON DELETE SET NULL,
-    show_date DATE NOT NULL,
+    show_date DATE NOT NULL CHECK (show_date >= '2026-01-01'),
     show_time TIME NOT NULL,
     sales_start TIMESTAMPTZ,
     sales_end TIMESTAMPTZ,
@@ -111,7 +111,7 @@ CREATE TABLE IF NOT EXISTS ticket (
 
 CREATE TABLE IF NOT EXISTS payment (
     payment_id SERIAL PRIMARY KEY,
-    booking_id INTEGER REFERENCES booking(booking_id) ON DELETE SET NULL,
+    booking_id INTEGER UNIQUE REFERENCES booking(booking_id) ON DELETE SET NULL,
     amount NUMERIC(10, 2) NOT NULL CHECK (amount >= 0),
     payment_method VARCHAR(50) NOT NULL,
     payment_status VARCHAR(20) NOT NULL DEFAULT 'completed'

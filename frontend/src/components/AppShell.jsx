@@ -7,7 +7,18 @@ export default function AppShell({ children }) {
   const navigate = useNavigate();
   const session = getSession();
 
-  function signOut() {
+  async function signOut() {
+    try {
+      if (session?.role === "customer") {
+        const baseUrl = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
+        await fetch(baseUrl + "/api/auth/logout", {
+          method: "POST",
+          headers: { Authorization: `Bearer ${session.token}` }
+        });
+      }
+    } catch (err) {
+      // Ignore network errors on logout
+    }
     clearSession();
     navigate("/login");
   }
